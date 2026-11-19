@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body><script type="module">
+import { PhononTTS } from '../phonon-runtime/index.js';
+let engine;
+const base = '../cilla-mini/phonon/model/';
+async function start() {
+  try {
+    engine = await PhononTTS.load({
+      lang: 'none', rewrites: 'none', quant: 'f32', threads: 1, device: 'cpu', cache: false,
+      model: {
+        weights: { f32: base + 'model.safetensors' },
+        config: base + 'config.json', tokenizer: base + 'tokenizer.json',
+        voices: {
+          parisa: base + 'voices/parisa.safetensors',
+          voice1: base + 'voices/voice1.safetensors',
+          voice2: base + 'voices/voice2.safetensors'
+        },
+        defaultVoice: 'parisa'
+      }
+    });
+    NativeBridge.ready();
+  } catch (e) { NativeBridge.failed(String(e?.stack || e)); }
+}
+window.speak = async (text, voice, temperature) => {
+  try {
+    if (!engine) throw new Error('Phonon is not ready');
+    const samples = await engine.synth(text, {voice, temperature});
+    const bytes = new Uint8Array(samples.buffer, samples.byteOffset, samples.byteLength);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 16384) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 16384));
+    }
+    NativeBridge.audio(btoa(binary));
+  } catch(e) { NativeBridge.failed(String(e?.stack || e)); }
+};
+start();
+</script></body></html>
