@@ -184,17 +184,15 @@ class ModelRepository(private val context: Context) {
         )
     }
 
-    private fun hasPhononBundle(): Boolean = runCatching {
-        listOf(
-            "phonon-runtime/index.js",
-            "cilla-mini/phonon/model/config.json",
-            "cilla-mini/phonon/model/tokenizer.json",
-            "cilla-mini/phonon/model/model.safetensors",
-            "cilla-mini/phonon/model/voices/parisa.safetensors",
-        ).all { path ->
-            context.assets.open(path).use { it.read() != -1 }
-        }
-    }.getOrDefault(false)
+    fun missingPhononAssets(): List<String> = listOf(
+        "phonon-runtime/index.js",
+        "cilla-mini/phonon/model/config.json",
+        "cilla-mini/phonon/model/tokenizer.json",
+        "cilla-mini/phonon/model/model.safetensors",
+        "cilla-mini/phonon/model/voices/parisa.safetensors",
+    ).filter { path -> runCatching { context.assets.open(path).use { it.read() != -1 } }.getOrDefault(false).not() }
+
+    private fun hasPhononBundle(): Boolean = missingPhononAssets().isEmpty()
 
     suspend fun loadEngine(): TtsEngine? = withContext(Dispatchers.IO) {
         if (hasPhononBundle()) return@withContext PhononPocketTtsEngine.load(context)
