@@ -123,6 +123,7 @@ dependencies {
   implementation(libs.kotlinx.coroutines.core)
   // implementation(libs.logging.interceptor)
   // implementation(libs.moshi.kotlin)
+  implementation("androidx.webkit:webkit:1.12.1")
   implementation(libs.okhttp)
   implementation(libs.onnxruntime.android)
   // implementation(libs.play.services.location)
