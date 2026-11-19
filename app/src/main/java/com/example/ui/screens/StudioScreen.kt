@@ -379,28 +379,6 @@ fun StudioScreen(
                             valueRange = 0.1f..1.4f,
                         )
 
-                        Text(
-                            text = "گام‌های نمونه‌برداری: ${settings.flowSteps} • مکث جملات: ${settings.sentencePauseMs}ms",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Slider(
-                            value = settings.sentencePauseMs.toFloat(),
-                            onValueChange = { onUpdatePauseMs(it.toInt()) },
-                            valueRange = 0f..600f,
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text("حذف سکوت اضافی", style = MaterialTheme.typography.bodySmall)
-                            Switch(
-                                checked = settings.trimSilence,
-                                onCheckedChange = onUpdateTrimSilence,
-                            )
-                        }
                     }
                 }
             }
