@@ -41,6 +41,17 @@ jobs:
         run: |
           test -n "$HF_TOKEN" || { echo "::error::Missing HF_TOKEN secret"; exit 1; }
           python3 .github/scripts/bundle_cilla.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Bundle Phonon WASM runtime offline
+        run: |
+          mkdir -p app/src/main/assets/phonon-runtime
+          npm pack phonon-tts@latest --pack-destination /tmp
+          tar -xzf /tmp/phonon-tts-*.tgz -C app/src/main/assets/phonon-runtime --strip-components=1
+          test -s app/src/main/assets/phonon-runtime/index.js
+          test -s app/src/main/assets/phonon-runtime/worker.js
+          test -s app/src/main/assets/phonon-runtime/wasm/phonon_tts_bg.wasm
       - name: Generate local debug signing key
         run: |
           keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
