@@ -34,32 +34,27 @@ fun InteractiveWaveformView(
     modifier: Modifier = Modifier,
 ) {
     val activeColor = MaterialTheme.colorScheme.primary
-    val secondaryGlow = MaterialTheme.colorScheme.secondary
-    val inactiveColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
-    val bars = if (peaks.isEmpty()) List(48) { 0.16f } else peaks
+    val inactiveColor = MaterialTheme.colorScheme.outlineVariant
+    val bars = if (peaks.isEmpty()) List(44) { 0.18f } else peaks
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp),
+            .height(40.dp),
     ) {
         val count = bars.size
         val slotWidth = size.width / count.toFloat()
-        val barWidth = (slotWidth * 0.58f).coerceAtLeast(3f)
+        val barWidth = (slotWidth * 0.48f).coerceAtLeast(2.5f)
         val centerY = size.height / 2f
 
         for (i in 0 until count) {
             val normPos = (i + 0.5f) / count.toFloat()
-            val amp = bars[i].coerceIn(0.08f, 1f)
-            val barH = size.height * 0.86f * amp
+            val amp = bars[i].coerceIn(0.10f, 1f)
+            val barH = size.height * 0.85f * amp
             val x = i * slotWidth + (slotWidth - barWidth) / 2f
             val y = centerY - barH / 2f
 
-            val barColor = when {
-                isPlaying && normPos <= progress -> activeColor
-                isPlaying && normPos <= progress + 0.04f -> secondaryGlow
-                else -> inactiveColor
-            }
+            val barColor = if (isPlaying && normPos <= progress) activeColor else inactiveColor
 
             drawRoundRect(
                 color = barColor,
@@ -91,7 +86,7 @@ fun StatusPill(
         ) {
             Box(
                 modifier = Modifier
-                    .size(8.dp)
+                    .size(7.dp)
                     .clip(CircleShape)
                     .background(dotColor),
             )
@@ -110,21 +105,21 @@ fun MicLevelMeter(
     modifier: Modifier = Modifier,
 ) {
     val animated by animateFloatAsState(targetValue = level.coerceIn(0f, 1f), label = "mic_lvl")
-    val barColor = MaterialTheme.colorScheme.secondary
-    val trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+    val barColor = MaterialTheme.colorScheme.primary
+    val trackColor = MaterialTheme.colorScheme.outlineVariant
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(36.dp),
+            .height(28.dp),
     ) {
-        val bars = 24
+        val bars = 22
         val slot = size.width / bars
-        val w = (slot * 0.55f).coerceAtLeast(3f)
+        val w = (slot * 0.45f).coerceAtLeast(2.5f)
         val centerY = size.height / 2f
         for (i in 0 until bars) {
             val distFromCenter = kotlin.math.abs(i - bars / 2f) / (bars / 2f)
-            val shaped = (animated * (1.15f - distFromCenter * 0.65f)).coerceIn(0.1f, 1f)
+            val shaped = (animated * (1.15f - distFromCenter * 0.65f)).coerceIn(0.12f, 1f)
             val h = size.height * shaped * 0.85f
             val x = i * slot + (slot - w) / 2f
             drawRoundRect(
