@@ -120,7 +120,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!inv.canRunOffline) {
             activeEngine?.close()
             activeEngine = null
-            _modelState.value = ModelEngineState.Missing(inv)
+            val missing = modelRepo.missingPhononAssets()
+            _modelState.value = if (missing.isNotEmpty()) {
+                ModelEngineState.Error("فایل‌های Phonon داخل APK پیدا نشدند: " + missing.joinToString(", "), inv)
+            } else {
+                ModelEngineState.Missing(inv)
+            }
             return
         }
 
@@ -155,7 +160,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val engine = activeEngine
         if (engine == null) {
             _synthesisState.value = SynthesisUiState.Error(
-                "ابتدا فایل‌های مدل mehdi-hf/cilla-mini را در بخش «مدل آفلاین» دانلود یا وارد کنید."
+                when (val state = _modelState.value) {
+                    is ModelEngineState.Error -> state.message
+                    is ModelEngineState.Loading -> "موتور گفتار هنوز در حال بارگذاری است."
+                    else -> "مدل آماده نیست؛ وضعیت موتور را در بخش «مدل آفلاین» بررسی کنید."
+                }
             )
             return
         }
