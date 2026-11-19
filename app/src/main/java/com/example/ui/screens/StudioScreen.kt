@@ -161,56 +161,49 @@ fun StudioScreen(
                 }
             }
 
-            // Clearly separate voice selection from example texts.
+            // Compact voice picker: all available presets visible at a glance.
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Text("انتخاب گوینده", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "صدای موردنظر برای تبدیل متن به گفتار را انتخاب کنید",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    listOf(
-                        Triple("voice1", "زن", "صدای زن"),
-                        Triple("voice2", "مرد", "صدای مرد"),
-                        Triple("parisa", "پریسا", "صدای پیش‌فرض"),
-                    ).forEach { (id, title, subtitle) ->
-                        val selected = settings.activeVoiceId.ifBlank { "parisa" } == id
-                        Surface(
-                            onClick = { onSelectPresetVoice(id) },
-                            shape = RoundedCornerShape(16.dp),
-                            color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                            border = BorderStroke(
-                                if (selected) 2.dp else 1.dp,
-                                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                            ),
-                            modifier = Modifier.fillMaxWidth().testTag("voice_preset_$id"),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        listOf(
+                            "voice1" to "زن",
+                            "voice2" to "مرد",
+                            "parisa" to "پریسا",
+                        ).forEach { (id, label) ->
+                            val selected = settings.activeVoiceId.ifBlank { "parisa" } == id
+                            Surface(
+                                onClick = { onSelectPresetVoice(id) },
+                                shape = RoundedCornerShape(16.dp),
+                                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                border = BorderStroke(
+                                    if (selected) 2.dp else 1.dp,
+                                    if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                ),
+                                modifier = Modifier.weight(1f).testTag("voice_preset_$id"),
                             ) {
-                                Column {
-                                    Text(title, style = MaterialTheme.typography.titleMedium)
+                                Column(
+                                    modifier = Modifier.padding(vertical = 13.dp, horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Text(label, style = MaterialTheme.typography.titleMedium)
                                     Text(
-                                        subtitle,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        if (selected) "● انتخاب‌شده" else "انتخاب",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
-                                Text(
-                                    if (selected) "● انتخاب‌شده" else "○ انتخاب",
-                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.labelMedium,
-                                )
                             }
                         }
                     }
