@@ -99,7 +99,7 @@ fun StudioScreen(
     onUpdateTrimSilence: (Boolean) -> Unit,
     onUpdateAutoNormalize: (Boolean) -> Unit,
     onOpenModelSetup: () -> Unit,
-    onNavigateToVoices: () -> Unit,
+    onSelectPresetVoice: (String) -> Unit,
 ) {
     var showOptions by remember { mutableStateOf(false) }
     var pendingExportClip by remember { mutableStateOf<ClipRecord?>(null) }
@@ -169,32 +169,14 @@ fun StudioScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier
-                        .clickable(onClick = onNavigateToVoices)
-                        .testTag("active_voice_selector"),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.RecordVoiceOver,
-                            contentDescription = "انتخاب صدا",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Text(
-                            text = activeVoice?.label ?: "صدای پایه",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+                listOf("parisa" to "پریسا", "voice1" to "صدای زن", "voice2" to "صدای مرد").forEach { (id, label) ->
+                    FilterChip(
+                        selected = (settings.activeVoiceId.ifBlank { "parisa" } == id),
+                        onClick = { onSelectPresetVoice(id) },
+                        label = { Text(label) },
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier.testTag("voice_preset_$id"),
+                    )
                 }
 
                 minimalPresets.forEach { (title, sample) ->
