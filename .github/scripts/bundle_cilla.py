@@ -2,6 +2,7 @@
 """Download permitted Cilla Mini weights at build time; never embed HF_TOKEN."""
 import os
 import pathlib
+import shutil
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -27,20 +28,14 @@ def walk(folder=""):
 
 def main():
     entries = walk()
-    selected = []
-    for entry in entries:
-        path = entry["path"]
-        if path in ("model.safetensors", "tokenizer.model", "config.yaml") or (
-            path.startswith("prompts/") and path.endswith((".wav", ".safetensors"))
-        ) or (path.startswith("onnx/") and path.endswith(".onnx")) or (
-            path.startswith("phonon/model/") and path.endswith((".json", ".safetensors"))
-        ):
-            selected.append(entry)
-    names = {x["path"] for x in selected}
-    if "tokenizer.model" not in names or not (
-        "model.safetensors" in names or any(x.startswith("onnx/") for x in names)
-    ):
-        raise RuntimeError("Required tokenizer or model weights missing from Hugging Face tree")
+    # Bundle one checkpoint only: the Phonon runtime consumes phonon/model/*.
+    # Legacy root weights and ONNX are deliberately excluded to avoid ~100MB duplication.
+    selected = [
+        entry for entry in entries
+        if entry["path"].startswith("phonon/model/")
+        and entry["path"].endswith((".json", ".safetensors"))
+    ]
+    names = {entry["path"] for entry in selected}
     phonon_required = {
         "phonon/model/config.json",
         "phonon/model/tokenizer.json",
@@ -49,8 +44,7 @@ def main():
     }
     if not phonon_required.issubset(names):
         raise RuntimeError("Phonon checkpoint is incomplete: " + str(sorted(phonon_required - names)))
-    for entry in selected:
-        path = entry["path"]
+    # Ensure stale files from earlier builds cannot leak into the APK.\n    if DEST.exists():\n        shutil.rmtree(DEST)\n    for entry in selected:\n        path = entry["path"]
         target = DEST / path
         target.parent.mkdir(parents=True, exist_ok=True)
         url = f"https://huggingface.co/{REPO}/resolve/main/" + urllib.parse.quote(path, safe="/")
