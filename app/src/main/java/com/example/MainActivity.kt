@@ -183,7 +183,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                            .padding(horizontal = 20.dp, vertical = 22.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
