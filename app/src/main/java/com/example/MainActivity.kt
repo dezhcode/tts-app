@@ -148,13 +148,6 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                 testTag = "nav_studio",
             ),
             NavDestination(
-                route = ROUTE_VOICES,
-                label = "صداها",
-                selectedIcon = Icons.Rounded.RecordVoiceOver,
-                unselectedIcon = Icons.Outlined.RecordVoiceOver,
-                testTag = "nav_voices",
-            ),
-            NavDestination(
                 route = ROUTE_LIBRARY,
                 label = "بایگانی",
                 selectedIcon = Icons.Rounded.LibraryMusic,
@@ -324,7 +317,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                             onUpdateTrimSilence = viewModel::updateTrimSilence,
                             onUpdateAutoNormalize = viewModel::updateAutoNormalize,
                             onOpenModelSetup = { showModelSheet = true },
-                            onNavigateToVoices = { navigateSingleTop(ROUTE_VOICES) },
+                            onSelectPresetVoice = viewModel::selectVoice,
                         )
                     }
                     composable(ROUTE_VOICES) {
