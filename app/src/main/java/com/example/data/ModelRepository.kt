@@ -164,6 +164,15 @@ class ModelRepository(private val context: Context) {
             )
         }
 
+        if (phononReady) {
+            statuses.clear()
+            statuses.addAll(listOf(
+                ModelFileStatus("phonon/model/model.safetensors", true, 0L, true),
+                ModelFileStatus("phonon/model/tokenizer.json", true, 0L, true),
+                ModelFileStatus("phonon/model/config.json", true, 0L, true),
+                ModelFileStatus("phonon-runtime/index.js", true, 0L, true),
+            ))
+        }
         val totalBytes = statuses.sumOf { it.sizeBytes } + getPromptFiles().sumOf { it.length() }
         return ModelInventory(
             safetensorsReady = stFile != null || phononReady,
@@ -176,9 +185,15 @@ class ModelRepository(private val context: Context) {
     }
 
     private fun hasPhononBundle(): Boolean = runCatching {
-        context.assets.open("phonon-runtime/index.js").close()
-        context.assets.open("cilla-mini/phonon/model/config.json").close()
-        true
+        listOf(
+            "phonon-runtime/index.js",
+            "cilla-mini/phonon/model/config.json",
+            "cilla-mini/phonon/model/tokenizer.json",
+            "cilla-mini/phonon/model/model.safetensors",
+            "cilla-mini/phonon/model/voices/parisa.safetensors",
+        ).all { path ->
+            context.assets.open(path).use { it.read() != -1 }
+        }
     }.getOrDefault(false)
 
     suspend fun loadEngine(): TtsEngine? = withContext(Dispatchers.IO) {
