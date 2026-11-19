@@ -225,6 +225,11 @@ class SafetensorsPocketTtsEngine private constructor(
         trimSilence: Boolean,
         onProgress: (sentenceIndex: Int, totalSentences: Int, frameCount: Int) -> Unit,
     ): SynthesisResult = withContext(Dispatchers.Default) {
+        // This Kotlin implementation does not implement the actual Mimi neural decoder.
+        // Never return synthetic oscillators as if they were intelligible speech.
+        throw UnsupportedOperationException(
+            "موتور فعلی Cilla Mini دیکودر عصبی Mimi را پیاده‌سازی نکرده است؛ تولید صدای آزمایشی نامفهوم غیرفعال شد. برای گفتار واقعی به اجرای کامل Pocket-TTS/Phonon نیاز است."
+        )
         val t0 = System.nanoTime()
         val sentences = PersianTextNormalizer.splitSentences(normalizedText)
         require(sentences.isNotEmpty()) { "متن قابل پردازش یافت نشد." }
