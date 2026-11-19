@@ -27,7 +27,8 @@ def walk(folder=""):
     return [x for x in items if x.get("type") == "file"]
 
 def main():
-    entries = walk()
+    # Query the nested folders explicitly; the HF tree API root listing may be paginated.
+    entries = walk("phonon/model") + walk("phonon/model/voices")
     # Bundle one checkpoint only: the Phonon runtime consumes phonon/model/*.
     # Legacy root weights and ONNX are deliberately excluded to avoid ~100MB duplication.
     selected = [
@@ -35,6 +36,7 @@ def main():
         if entry["path"].startswith("phonon/model/")
         and entry["path"].endswith((".json", ".safetensors"))
     ]
+    print("Discovered Phonon assets:", sorted(e["path"] for e in selected), flush=True)
     names = {entry["path"] for entry in selected}
     phonon_required = {
         "phonon/model/config.json",
