@@ -32,14 +32,14 @@ def main():
         path = entry["path"]
         if path in ("model.safetensors", "tokenizer.model", "config.yaml") or (
             path.startswith("prompts/") and path.endswith((".wav", ".safetensors"))
-        ) or (path.startswith("onnx/") and path.endswith(".onnx")):
+        ) or (path.startswith("onnx/") and path.endswith(".onnx")) or (\n            path.startswith("phonon/model/") and path.endswith((".json", ".safetensors"))\n        ):
             selected.append(entry)
     names = {x["path"] for x in selected}
     if "tokenizer.model" not in names or not (
         "model.safetensors" in names or any(x.startswith("onnx/") for x in names)
     ):
         raise RuntimeError("Required tokenizer or model weights missing from Hugging Face tree")
-    for entry in selected:
+    phonon_required = {\n        "phonon/model/config.json",\n        "phonon/model/tokenizer.json",\n        "phonon/model/model.safetensors",\n        "phonon/model/voices/parisa.safetensors",\n    }\n    if not phonon_required.issubset(names):\n        raise RuntimeError("Phonon checkpoint is incomplete: " + str(sorted(phonon_required - names)))\n    for entry in selected:
         path = entry["path"]
         target = DEST / path
         target.parent.mkdir(parents=True, exist_ok=True)
