@@ -1,0 +1,46 @@
+name: Build APK with bundled Cilla Mini
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/bundled-cilla-mini
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Download gated model into APK assets
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          test -n "$HF_TOKEN" || { echo "::error::Missing HF_TOKEN secret"; exit 1; }
+          python3 .github/scripts/bundle_cilla.py
+      - name: Generate local debug signing key
+        run: |
+          keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: cilla-mini-offline-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
