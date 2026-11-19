@@ -55,6 +55,10 @@ def main():
         expected = entry.get("size", 0)
         if expected and target.stat().st_size != expected:
             raise RuntimeError(f"Size mismatch for {path}")
+    for required in sorted(phonon_required):
+        target = DEST / required
+        if not target.is_file() or target.stat().st_size < 1024:
+            raise RuntimeError(f"Missing or empty bundled model asset: {required}")
     print("Bundled", len(selected), "model files")
 
 if __name__ == "__main__":
