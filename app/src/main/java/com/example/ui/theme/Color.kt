@@ -3,24 +3,24 @@ package com.example.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // Minimal Editorial Light Mode Palette
-val IvoryBg = Color(0xFFF9FAFB)
+val IvoryBg = Color(0xFFE0E5EC)
 val PureWhiteSurface = Color(0xFFFFFFFF)
-val SoftCloudSurface = Color(0xFFF1F5F9)
+val SoftCloudSurface = Color(0xFFF0F2F7)
 val HairlineBorderLight = Color(0xFFE2E8F0)
 
-val EmeraldTeal = Color(0xFF0D9488)
-val EmeraldSoftContainer = Color(0xFFE6F7F5)
-val EmeraldOnContainer = Color(0xFF0F4C46)
+val EmeraldTeal = Color(0xFF2454F4)
+val EmeraldSoftContainer = Color(0xFFEAF0FF)
+val EmeraldOnContainer = Color(0xFF2047BE)
 
-val WarmAmber = Color(0xFFD97706)
-val WarmAmberContainer = Color(0xFFFEF3C7)
-val WarmAmberOnContainer = Color(0xFF78350F)
+val WarmAmber = Color(0xFF2454F4)
+val WarmAmberContainer = Color(0xFFEAF0FF)
+val WarmAmberOnContainer = Color(0xFF2047BE)
 
 val SoftIndigo = Color(0xFF4F46E5)
 val SoftIndigoContainer = Color(0xFFE0E7FF)
 
-val InkPrimary = Color(0xFF0F172A)
-val InkSecondary = Color(0xFF64748B)
+val InkPrimary = Color(0xFF141720)
+val InkSecondary = Color(0xFF69717E)
 val ErrorRed = Color(0xFFDC2626)
 val ErrorSoftBg = Color(0xFFFEF2F2)
 
