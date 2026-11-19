@@ -28,7 +28,7 @@ def walk(folder=""):
 
 def main():
     # Query the nested folders explicitly; the HF tree API root listing may be paginated.
-    entries = walk("phonon/model") + walk("phonon/model/voices")
+    entries = walk("phonon/model")
     # Bundle one checkpoint only: the Phonon runtime consumes phonon/model/*.
     # Legacy root weights and ONNX are deliberately excluded to avoid ~100MB duplication.
     selected = [
@@ -46,7 +46,11 @@ def main():
     }
     if not phonon_required.issubset(names):
         raise RuntimeError("Phonon checkpoint is incomplete: " + str(sorted(phonon_required - names)))
-    # Ensure stale files from earlier builds cannot leak into the APK.\n    if DEST.exists():\n        shutil.rmtree(DEST)\n    for entry in selected:\n        path = entry["path"]
+    # Ensure stale files from earlier builds cannot leak into the APK.
+    if DEST.exists():
+        shutil.rmtree(DEST)
+    for entry in selected:
+        path = entry["path"]
         target = DEST / path
         target.parent.mkdir(parents=True, exist_ok=True)
         url = f"https://huggingface.co/{REPO}/resolve/main/" + urllib.parse.quote(path, safe="/")
