@@ -11,6 +11,7 @@ import androidx.webkit.WebViewCompat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.io.File
 import java.nio.ByteBuffer
@@ -109,7 +110,7 @@ class PhononPocketTtsEngine private constructor(
                 }
             }
             try {
-                bridge.initialized.await()
+                withTimeout(120_000) { bridge.initialized.await() }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { view.destroy() }
                 throw e
