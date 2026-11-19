@@ -22,7 +22,7 @@ data class UserSettings(
     val sentencePauseMs: Int = 220,
     val trimSilence: Boolean = true,
     val autoNormalizePersian: Boolean = true,
-    val darkTheme: Boolean = true,
+    val darkTheme: Boolean = false,
 )
 
 class AppPreferences(private val context: Context) {
@@ -34,7 +34,7 @@ class AppPreferences(private val context: Context) {
         val SENTENCE_PAUSE_MS = intPreferencesKey("sentence_pause_ms")
         val TRIM_SILENCE = booleanPreferencesKey("trim_silence")
         val AUTO_NORMALIZE_FA = booleanPreferencesKey("auto_normalize_fa")
-        val DARK_THEME = booleanPreferencesKey("dark_theme")
+        val DARK_THEME = booleanPreferencesKey("dark_theme_v2")
     }
 
     val settings: Flow<UserSettings> = context.dataStore.data.map { prefs ->
@@ -46,7 +46,7 @@ class AppPreferences(private val context: Context) {
             sentencePauseMs = prefs[Keys.SENTENCE_PAUSE_MS] ?: 220,
             trimSilence = prefs[Keys.TRIM_SILENCE] ?: true,
             autoNormalizePersian = prefs[Keys.AUTO_NORMALIZE_FA] ?: true,
-            darkTheme = prefs[Keys.DARK_THEME] ?: true,
+            darkTheme = prefs[Keys.DARK_THEME] ?: false,
         )
     }
 

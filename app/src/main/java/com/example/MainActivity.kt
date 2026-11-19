@@ -5,22 +5,28 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.LibraryMusic
-import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRail
@@ -28,17 +34,24 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,15 +62,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.ui.MainViewModel
+import com.example.ui.ModelEngineState
+import com.example.ui.components.StatusPill
 import com.example.ui.screens.LibraryScreen
-import com.example.ui.screens.ModelSetupScreen
+import com.example.ui.screens.ModelSetupSheetContent
 import com.example.ui.screens.StudioScreen
 import com.example.ui.screens.VoicesScreen
 import com.example.ui.theme.CillaTtsTheme
 
 const val ROUTE_STUDIO = "studio"
 const val ROUTE_VOICES = "voices"
-const val ROUTE_MODEL_SETUP = "model_setup"
 const val ROUTE_LIBRARY = "library"
 
 private data class NavDestination(
@@ -85,11 +99,13 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CillaTtsApp(viewModel: MainViewModel) {
     val context = LocalContext.current
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showModelSheet by remember { mutableStateOf(false) }
 
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val inputText by viewModel.inputText.collectAsStateWithLifecycle()
@@ -126,7 +142,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
         listOf(
             NavDestination(
                 route = ROUTE_STUDIO,
-                label = "استودیو",
+                label = "گفتار",
                 selectedIcon = Icons.Rounded.GraphicEq,
                 unselectedIcon = Icons.Outlined.GraphicEq,
                 testTag = "nav_studio",
@@ -137,13 +153,6 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                 selectedIcon = Icons.Rounded.RecordVoiceOver,
                 unselectedIcon = Icons.Outlined.RecordVoiceOver,
                 testTag = "nav_voices",
-            ),
-            NavDestination(
-                route = ROUTE_MODEL_SETUP,
-                label = "مدل آفلاین",
-                selectedIcon = Icons.Rounded.Memory,
-                unselectedIcon = Icons.Outlined.Memory,
-                testTag = "nav_model",
             ),
             NavDestination(
                 route = ROUTE_LIBRARY,
@@ -171,10 +180,75 @@ fun CillaTtsApp(viewModel: MainViewModel) {
 
         Scaffold(
             contentWindowInsets = WindowInsets.safeDrawing,
+            containerColor = MaterialTheme.colorScheme.background,
             snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                Surface(
+                    color = MaterialTheme.colorScheme.background,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column {
+                            Text(
+                                text = "سیلا",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground,
+                            )
+                            Text(
+                                text = "گفتار آفلاین فارسی",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+
+                        when (modelState) {
+                            is ModelEngineState.Ready -> StatusPill(
+                                text = "مدل آماده",
+                                dotColor = MaterialTheme.colorScheme.primary,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .clickable { showModelSheet = true }
+                                    .testTag("nav_model"),
+                            )
+                            is ModelEngineState.Loading -> StatusPill(
+                                text = "در حال بارگذاری...",
+                                dotColor = MaterialTheme.colorScheme.secondary,
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .clickable { showModelSheet = true }
+                                    .testTag("nav_model"),
+                            )
+                            else -> StatusPill(
+                                text = "نصب مدل",
+                                dotColor = MaterialTheme.colorScheme.secondary,
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .clickable { showModelSheet = true }
+                                    .testTag("nav_model"),
+                            )
+                        }
+                    }
+                }
+            },
             bottomBar = {
                 if (!useRail) {
-                    NavigationBar {
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 0.dp,
+                    ) {
                         destinations.forEach { dest ->
                             val selected = currentRoute == dest.route
                             NavigationBarItem(
@@ -200,7 +274,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                     .padding(innerPadding),
             ) {
                 if (useRail) {
-                    NavigationRail {
+                    NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
                         destinations.forEach { dest ->
                             val selected = currentRoute == dest.route
                             NavigationRailItem(
@@ -249,7 +323,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                             onUpdatePauseMs = viewModel::updateSentencePause,
                             onUpdateTrimSilence = viewModel::updateTrimSilence,
                             onUpdateAutoNormalize = viewModel::updateAutoNormalize,
-                            onNavigateToModelSetup = { navigateSingleTop(ROUTE_MODEL_SETUP) },
+                            onOpenModelSetup = { showModelSheet = true },
                             onNavigateToVoices = { navigateSingleTop(ROUTE_VOICES) },
                         )
                     }
@@ -270,18 +344,6 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                             onDeleteVoice = viewModel::deleteVoice,
                         )
                     }
-                    composable(ROUTE_MODEL_SETUP) {
-                        ModelSetupScreen(
-                            settings = settings,
-                            inventory = inventory,
-                            modelState = modelState,
-                            downloadState = downloadState,
-                            onDownloadHuggingFace = viewModel::downloadModelFromHuggingFace,
-                            onImportLocalFiles = viewModel::importLocalModelFiles,
-                            onClearModels = viewModel::clearModelFiles,
-                            onToggleDarkTheme = viewModel::updateDarkTheme,
-                        )
-                    }
                     composable(ROUTE_LIBRARY) {
                         LibraryScreen(
                             clips = clips,
@@ -299,6 +361,26 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                         )
                     }
                 }
+            }
+        }
+
+        if (showModelSheet) {
+            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ModalBottomSheet(
+                onDismissRequest = { showModelSheet = false },
+                sheetState = sheetState,
+                containerColor = MaterialTheme.colorScheme.surface,
+            ) {
+                ModelSetupSheetContent(
+                    settings = settings,
+                    inventory = inventory,
+                    modelState = modelState,
+                    downloadState = downloadState,
+                    onDownloadHuggingFace = viewModel::downloadModelFromHuggingFace,
+                    onImportLocalFiles = viewModel::importLocalModelFiles,
+                    onClearModels = viewModel::clearModelFiles,
+                    onToggleDarkTheme = viewModel::updateDarkTheme,
+                )
             }
         }
     }
