@@ -200,7 +200,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                     ) {
                         Column {
                             Text(
-                                text = "سیلا",
+                                text = "Avina",
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground,
@@ -247,56 +247,6 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                     }
                 }
             },
-            bottomBar = {
-                if (!useRail) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
-                            .windowInsetsPadding(WindowInsets.navigationBars),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(40.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 12.dp,
-                            tonalElevation = 0.dp,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                destinations.forEach { dest ->
-                                    val selected = currentRoute == dest.route
-                                    Surface(
-                                        onClick = { navigateSingleTop(dest.route) },
-                                        shape = RoundedCornerShape(32.dp),
-                                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                                        modifier = Modifier.weight(1f).testTag(dest.testTag),
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(vertical = 13.dp, horizontal = 10.dp),
-                                            horizontalArrangement = Arrangement.Center,
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            Icon(
-                                                imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                                contentDescription = dest.label,
-                                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                            if (selected) {
-                                                Spacer(Modifier.width(8.dp))
-                                                Text(dest.label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
         ) { innerPadding ->
             Row(
                 modifier = Modifier
@@ -326,7 +276,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                 NavHost(
                     navController = navController,
                     startDestination = ROUTE_STUDIO,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).padding(bottom = if (useRail) 0.dp else 92.dp),
                 ) {
                     composable(ROUTE_STUDIO) {
                         StudioScreen(
@@ -392,6 +342,55 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                     }
                 }
             }
+        }
+
+        if (!useRail) {
+                    Box(
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                            .windowInsetsPadding(WindowInsets.navigationBars),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(40.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            shadowElevation = 12.dp,
+                            tonalElevation = 0.dp,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                destinations.forEach { dest ->
+                                    val selected = currentRoute == dest.route
+                                    Surface(
+                                        onClick = { navigateSingleTop(dest.route) },
+                                        shape = RoundedCornerShape(32.dp),
+                                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                        modifier = Modifier.weight(1f).testTag(dest.testTag),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 13.dp, horizontal = 10.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Icon(
+                                                imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
+                                                contentDescription = dest.label,
+                                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            if (selected) {
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(dest.label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
         }
 
         if (showModelSheet) {
