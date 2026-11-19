@@ -190,8 +190,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _synthesisState.value = SynthesisUiState.Synthesizing(1, 1, 0)
             runCatching {
-                val activeVoice = _voices.value.firstOrNull { it.id == cfg.activeVoiceId }
-                    ?: _voices.value.firstOrNull()
+                val selectedPreset = cfg.activeVoiceId.takeIf { it in setOf("parisa", "voice1", "voice2") } ?: "parisa"
+                val activeVoice = null as VoicePromptItem?
 
                 val voiceEmbedding = if (activeVoice != null) {
                     val audio = if (activeVoice.isSafetensorsCache) null else {
@@ -202,7 +202,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val stateFile = if (activeVoice.isSafetensorsCache) activeVoice.file else null
                     engine.encodeVoicePrompt(activeVoice.id, activeVoice.label, audio, stateFile)
                 } else {
-                    null
+                    engine.encodeVoicePrompt(selectedPreset, selectedPreset, null, null)
                 }
 
                 val res = engine.synthesize(
@@ -220,7 +220,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val savedClip = clipVoiceRepo.saveClip(
                     text = raw,
                     normalizedText = textForModel,
-                    voiceLabel = activeVoice?.label ?: "صدای پایه سیلا",
+                    voiceLabel = when (selectedPreset) { "voice1" -> "صدای زن"; "voice2" -> "صدای مرد"; else -> "پریسا" },
                     pcm24k = res.pcmSamples24k,
                     sampleRate = res.sampleRate,
                     durationSec = res.durationSeconds,
