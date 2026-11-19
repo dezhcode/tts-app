@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
@@ -23,12 +25,12 @@ import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
@@ -42,8 +44,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.data.ClipRecord
 import com.example.ui.components.InteractiveWaveformView
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -68,27 +68,25 @@ fun LibraryScreen(
         pendingExportClip = null
     }
 
-    val dateFormatter = remember { SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()) }
-
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
     ) {
         LazyColumn(
             modifier = Modifier
-                .widthIn(max = 720.dp)
+                .widthIn(max = 640.dp)
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "بایگانی فایل‌های صوتی",
-                    style = MaterialTheme.typography.headlineSmall,
+                    text = "بایگانی صداها",
+                    style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
-                    text = "${clips.size} فایل WAV آفلاین ۲۴ kHz ذخیره‌شده",
+                    text = "${clips.size} فایل ذخیره‌شده",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -96,29 +94,30 @@ fun LibraryScreen(
 
             if (clips.isEmpty()) {
                 item {
-                    Card(
+                    Surface(
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(28.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.LibraryMusic,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(40.dp),
+                                modifier = Modifier.size(34.dp),
                             )
                             Text(
                                 text = "هنوز صدایی ساخته نشده است",
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleSmall,
                             )
                             Text(
-                                text = "پس از تبدیل متن به گفتار در بخش استودیو، فایل‌های WAV به‌صورت خودکار اینجا ذخیره می‌شوند.",
+                                text = "فایل‌های صوتی تولیدشده در بخش گفتار اینجا نمایش داده می‌شوند.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -128,9 +127,10 @@ fun LibraryScreen(
             } else {
                 items(clips, key = { it.id }) { clip ->
                     val thisPlaying = isPlaying && playingClipId == clip.id
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp),
@@ -139,39 +139,22 @@ fun LibraryScreen(
                             Text(
                                 text = clip.text,
                                 style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 3,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(
-                                    text = "صدا: ${clip.voiceLabel}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                                Text(
-                                    text = "${String.format(Locale.US, "%.1fs", clip.durationSec)} • ${dateFormatter.format(Date(clip.createdAtMs))}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-
-                            InteractiveWaveformView(
-                                peaks = clip.waveformPeaks,
-                                progress = if (thisPlaying) playProgress else 0f,
-                                isPlaying = thisPlaying,
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                FilledTonalIconButton(
+                                FilledIconButton(
                                     onClick = { onPlayClip(clip) },
-                                    modifier = Modifier.minimumInteractiveComponentSize(),
+                                    modifier = Modifier.size(42.dp),
+                                    shape = CircleShape,
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.primary,
+                                    ),
                                 ) {
                                     Icon(
                                         imageVector = if (thisPlaying) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
@@ -179,32 +162,51 @@ fun LibraryScreen(
                                     )
                                 }
 
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    IconButton(
-                                        onClick = {
-                                            pendingExportClip = clip
-                                            exportLauncher.launch(clip.fileName)
-                                        },
-                                        modifier = Modifier.minimumInteractiveComponentSize(),
-                                    ) {
-                                        Icon(Icons.Rounded.Download, contentDescription = "ذخیره در دستگاه")
-                                    }
-                                    IconButton(
-                                        onClick = { onShareClip(clip) },
-                                        modifier = Modifier.minimumInteractiveComponentSize(),
-                                    ) {
-                                        Icon(Icons.Rounded.Share, contentDescription = "اشتراک‌گذاری")
-                                    }
-                                    IconButton(
-                                        onClick = { onDeleteClip(clip) },
-                                        modifier = Modifier.minimumInteractiveComponentSize(),
-                                    ) {
-                                        Icon(
-                                            Icons.Rounded.Delete,
-                                            contentDescription = "حذف فایل",
-                                            tint = MaterialTheme.colorScheme.error,
-                                        )
-                                    }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    InteractiveWaveformView(
+                                        peaks = clip.waveformPeaks,
+                                        progress = if (thisPlaying) playProgress else 0f,
+                                        isPlaying = thisPlaying,
+                                    )
+                                    Text(
+                                        text = "${clip.voiceLabel} • ${String.format(Locale.US, "%.1fs", clip.durationSec)}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = {
+                                        pendingExportClip = clip
+                                        exportLauncher.launch(clip.fileName)
+                                    },
+                                    modifier = Modifier.minimumInteractiveComponentSize(),
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Download,
+                                        contentDescription = "ذخیره در دستگاه",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { onShareClip(clip) },
+                                    modifier = Modifier.minimumInteractiveComponentSize(),
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Share,
+                                        contentDescription = "اشتراک‌گذاری",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { onDeleteClip(clip) },
+                                    modifier = Modifier.minimumInteractiveComponentSize(),
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Delete,
+                                        contentDescription = "حذف فایل",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
                             }
                         }
@@ -212,7 +214,7 @@ fun LibraryScreen(
                 }
             }
 
-            item { Spacer(Modifier.height(16.dp)) }
+            item { Spacer(Modifier.height(12.dp)) }
         }
     }
 }
