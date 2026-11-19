@@ -102,7 +102,7 @@ class MainActivity : ComponentActivity() {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                CillaTtsTheme(darkTheme = settings.darkTheme) {
+                CillaTtsTheme(darkTheme = false) {
                     CillaTtsApp(viewModel = viewModel)
                 }
             }
@@ -401,14 +401,8 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                 containerColor = MaterialTheme.colorScheme.surface,
             ) {
                 ModelSetupSheetContent(
-                    settings = settings,
                     inventory = inventory,
                     modelState = modelState,
-                    downloadState = downloadState,
-                    onDownloadHuggingFace = viewModel::downloadModelFromHuggingFace,
-                    onImportLocalFiles = viewModel::importLocalModelFiles,
-                    onClearModels = viewModel::clearModelFiles,
-                    onToggleDarkTheme = viewModel::updateDarkTheme,
                 )
             }
         }
