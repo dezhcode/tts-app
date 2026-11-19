@@ -91,7 +91,7 @@ fun ModelSetupSheetContent(
         ) {
             Column {
                 Text(
-                    text = "مدل آفلاین Cilla Mini",
+                    text = "مدل آفلاین Avina",
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
