@@ -86,8 +86,7 @@ class ModelRepository(private val context: Context) {
                 }
             }
         }
-        copyDirectory(root)
-    }
+        // Phonon reads the bundled checkpoint directly via WebViewAssetLoader.\n        // Do not copy its ~100MB weights to private storage.\n        if (hasPhononBundle()) return\n        copyDirectory(root)\n    }
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(25, TimeUnit.SECONDS)
@@ -123,6 +122,7 @@ class ModelRepository(private val context: Context) {
     fun inspectInventory(): ModelInventory {
         installBundledModelIfNeeded()
         val stFile = getSafetensorsFile()
+        val phononReady = hasPhononBundle()
         val tokFile = getTokenizerFile()
         val cfgFile = getConfigFile()
         val onnxFiles = onnxDir.listFiles()?.filter { it.isFile && it.extension.equals("onnx", true) } ?: emptyList()
@@ -162,10 +162,10 @@ class ModelRepository(private val context: Context) {
 
         val totalBytes = statuses.sumOf { it.sizeBytes } + getPromptFiles().sumOf { it.length() }
         return ModelInventory(
-            safetensorsReady = stFile != null,
+            safetensorsReady = stFile != null || phononReady,
             onnxReady = hasMainOnnx && hasDecOnnx,
-            tokenizerReady = tokFile != null,
-            configReady = cfgFile != null,
+            tokenizerReady = tokFile != null || phononReady,
+            configReady = cfgFile != null || phononReady,
             files = statuses,
             totalSizeMb = totalBytes / (1024f * 1024f),
         )
@@ -178,6 +178,7 @@ class ModelRepository(private val context: Context) {
     }.getOrDefault(false)
 
     suspend fun loadEngine(): TtsEngine? = withContext(Dispatchers.IO) {
+        if (hasPhononBundle()) return@withContext PhononPocketTtsEngine.load(context)
         val tok = getTokenizerFile() ?: return@withContext null
         val cfg = getConfigFile()
         val inv = inspectInventory()
