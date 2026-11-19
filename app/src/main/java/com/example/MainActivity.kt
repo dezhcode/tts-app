@@ -8,6 +8,15 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -29,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
@@ -47,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -178,7 +189,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
             topBar = {
                 Surface(
                     color = MaterialTheme.colorScheme.background,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars),
                 ) {
                     Row(
                         modifier = Modifier
@@ -238,24 +249,50 @@ fun CillaTtsApp(viewModel: MainViewModel) {
             },
             bottomBar = {
                 if (!useRail) {
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 0.dp,
+                    Box(
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                            .windowInsetsPadding(WindowInsets.navigationBars),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        destinations.forEach { dest ->
-                            val selected = currentRoute == dest.route
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = { navigateSingleTop(dest.route) },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                        contentDescription = dest.label,
-                                    )
-                                },
-                                label = { Text(dest.label) },
-                                modifier = Modifier.testTag(dest.testTag),
-                            )
+                        Surface(
+                            shape = RoundedCornerShape(40.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            shadowElevation = 12.dp,
+                            tonalElevation = 0.dp,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                destinations.forEach { dest ->
+                                    val selected = currentRoute == dest.route
+                                    Surface(
+                                        onClick = { navigateSingleTop(dest.route) },
+                                        shape = RoundedCornerShape(32.dp),
+                                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                        modifier = Modifier.weight(1f).testTag(dest.testTag),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 13.dp, horizontal = 10.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Icon(
+                                                imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
+                                                contentDescription = dest.label,
+                                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            if (selected) {
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(dest.label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
