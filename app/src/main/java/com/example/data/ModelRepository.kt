@@ -86,7 +86,11 @@ class ModelRepository(private val context: Context) {
                 }
             }
         }
-        // Phonon reads the bundled checkpoint directly via WebViewAssetLoader.\n        // Do not copy its ~100MB weights to private storage.\n        if (hasPhononBundle()) return\n        copyDirectory(root)\n    }
+        // Phonon reads the bundled checkpoint directly via WebViewAssetLoader.
+        // Do not copy its ~100MB weights to private storage.
+        if (hasPhononBundle()) return
+        copyDirectory(root)
+    }
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(25, TimeUnit.SECONDS)
