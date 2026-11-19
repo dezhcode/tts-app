@@ -102,7 +102,7 @@ class MainActivity : ComponentActivity() {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                CillaTtsTheme(darkTheme = false) {
+                CillaTtsTheme(darkTheme = true) {
                     CillaTtsApp(viewModel = viewModel)
                 }
             }
@@ -200,13 +200,13 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                     ) {
                         Column {
                             Text(
-                                text = "Avina",
+                                text = "آوینا ✦",
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground,
                             )
                             Text(
-                                text = "گفتار آفلاین فارسی",
+                                text = "استودیوی صدای فارسی • آفلاین",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
