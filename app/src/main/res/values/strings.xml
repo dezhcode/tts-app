@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Cilla TTS</string>
+    <string name="nav_studio">استودیو</string>
+    <string name="nav_voices">صداها</string>
+    <string name="nav_model">مدل آفلاین</string>
+    <string name="nav_library">بایگانی</string>
+    <string name="studio_title">مبدل متن به گفتار سیلا</string>
+    <string name="studio_subtitle">Cilla Mini • 18.2M Offline Persian TTS</string>
+    <string name="input_label">متن فارسی را وارد کنید</string>
+    <string name="input_placeholder">سلام! امروز هوای بسیار دلپذیری است و می‌توانم متن‌های فارسی را کاملاً آفلاین و بدون نیاز به اینترنت به گفتار طبیعی تبدیل کنم.</string>
+    <string name="synthesize_button">تبدیل به گفتار</string>
+    <string name="synthesizing_status">در حال پردازش عصبی...</string>
+    <string name="normalized_preview_title">متن نرمال‌سازی‌شده برای مدل (normalize_fa)</string>
+    <string name="model_missing_banner">فایل‌های مدل cilla-mini هنوز بارگذاری نشده‌اند. برای سنتز آفلاین از بخش «مدل آفلاین» اقدام کنید.</string>
+    <string name="model_ready_badge">مدل آفلاین آماده است</string>
+    <string name="hf_repo_url">https://huggingface.co/mehdi-hf/cilla-mini</string>
+    <string name="record_permission_rationale">برای ضبط نمونه صدای ۳ تا ۱۰ ثانیه‌ای جهت شبیه‌سازی صدا (Zero-shot Voice Cloning)، دسترسی به میکروفون لازم است.</string>
+</resources>
