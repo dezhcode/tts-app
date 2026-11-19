@@ -59,6 +59,35 @@ class ModelRepository(private val context: Context) {
     private val onnxDir = File(modelDir, "onnx").apply { mkdirs() }
     private val promptsDir = File(modelDir, "prompts").apply { mkdirs() }
 
+    /** Copies the model shipped in the APK into private storage once, before model inspection. */
+    private fun installBundledModelIfNeeded() {
+        val root = "cilla-mini"
+        fun copyDirectory(assetPath: String, relativePath: String = "") {
+            val children = context.assets.list(assetPath).orEmpty()
+            for (child in children) {
+                val source = "$assetPath/$child"
+                val relative = if (relativePath.isEmpty()) child else "$relativePath/$child"
+                val nested = context.assets.list(source).orEmpty()
+                if (nested.isNotEmpty()) {
+                    copyDirectory(source, relative)
+                } else {
+                    val dest = resolveTargetFile(relative)
+                    if (dest.exists() && dest.length() > 1024L) continue
+                    dest.parentFile?.mkdirs()
+                    val temp = File(dest.parentFile, "${dest.name}.bundled-part")
+                    context.assets.open(source).use { input ->
+                        FileOutputStream(temp).use { output -> input.copyTo(output) }
+                    }
+                    if (!temp.renameTo(dest)) {
+                        temp.copyTo(dest, overwrite = true)
+                        temp.delete()
+                    }
+                }
+            }
+        }
+        copyDirectory(root)
+    }
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(25, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
@@ -91,6 +120,7 @@ class ModelRepository(private val context: Context) {
             ?: emptyList()
 
     fun inspectInventory(): ModelInventory {
+        installBundledModelIfNeeded()
         val stFile = getSafetensorsFile()
         val tokFile = getTokenizerFile()
         val cfgFile = getConfigFile()
