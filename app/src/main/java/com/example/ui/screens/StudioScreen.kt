@@ -161,35 +161,76 @@ fun StudioScreen(
                 }
             }
 
-            // Minimal Voice Selector & Quick Sample Strip
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            // Clearly separate voice selection from example texts.
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                listOf("parisa" to "پریسا", "voice1" to "صدای زن", "voice2" to "صدای مرد").forEach { (id, label) ->
-                    FilterChip(
-                        selected = (settings.activeVoiceId.ifBlank { "parisa" } == id),
-                        onClick = { onSelectPresetVoice(id) },
-                        label = { Text(label) },
-                        shape = RoundedCornerShape(50),
-                        modifier = Modifier.testTag("voice_preset_$id"),
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text("انتخاب گوینده", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "صدای موردنظر برای تبدیل متن به گفتار را انتخاب کنید",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    listOf(
+                        Triple("voice1", "زن", "صدای زن"),
+                        Triple("voice2", "مرد", "صدای مرد"),
+                        Triple("parisa", "پریسا", "صدای پیش‌فرض"),
+                    ).forEach { (id, title, subtitle) ->
+                        val selected = settings.activeVoiceId.ifBlank { "parisa" } == id
+                        Surface(
+                            onClick = { onSelectPresetVoice(id) },
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            border = BorderStroke(
+                                if (selected) 2.dp else 1.dp,
+                                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                            ),
+                            modifier = Modifier.fillMaxWidth().testTag("voice_preset_$id"),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column {
+                                    Text(title, style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        subtitle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Text(
+                                    if (selected) "● انتخاب‌شده" else "○ انتخاب",
+                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
+                        }
+                    }
                 }
+            }
 
-                minimalPresets.forEach { (title, sample) ->
-                    val selected = inputText == sample
-                    FilterChip(
-                        selected = selected,
-                        onClick = { onTextChange(sample) },
-                        label = { Text(title, style = MaterialTheme.typography.labelMedium) },
-                        shape = RoundedCornerShape(50),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        ),
-                    )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("متن‌های نمونه", style = MaterialTheme.typography.titleMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    minimalPresets.forEach { (title, sample) ->
+                        FilterChip(
+                            selected = inputText == sample,
+                            onClick = { onTextChange(sample) },
+                            label = { Text(title) },
+                            shape = RoundedCornerShape(50),
+                        )
+                    }
                 }
             }
 
