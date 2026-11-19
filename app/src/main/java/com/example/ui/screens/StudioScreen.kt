@@ -4,6 +4,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedVisibility
@@ -223,29 +231,48 @@ fun StudioScreen(
                 }
             }
 
-            // Single compact row; no large white container around the voice options.
+            Text("انتخاب گوینده", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(
-                    "گوینده",
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(end = 4.dp),
-                )
-                listOf("voice1" to "👩 صدای زن", "voice2" to "👨 صدای مرد", "parisa" to "✦ پریسا").forEach { (id, label) ->
-                    val selected = settings.activeVoiceId.ifBlank { "parisa" } == id
-                    FilterChip(
-                        selected = selected,
-                        onClick = { onSelectPresetVoice(id) },
-                        label = { Text(label) },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer),
-                        modifier = Modifier.testTag("voice_preset_$id"),
+                listOf(
+                    Triple("voice1", "صدای زن", Color(0xFFE66CFA)),
+                    Triple("voice2", "صدای مرد", Color(0xFF4BC9FF)),
+                ).forEach { (id, title, accent) ->
+                    val selected = settings.activeVoiceId == id
+                    val scale by androidx.compose.animation.core.animateFloatAsState(
+                        targetValue = if (selected) 1f else 0.97f,
+                        animationSpec = tween(250),
+                        label = "voice_card_scale",
                     )
+                    Surface(
+                        onClick = { onSelectPresetVoice(id) },
+                        shape = RoundedCornerShape(22.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) accent else MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier.weight(1f).graphicsLayer { scaleX = scale; scaleY = scale }
+                            .testTag("voice_preset_$id"),
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(7.dp),
+                            modifier = Modifier.padding(12.dp),
+                        ) {
+                            AvinaVoicePortrait(isMale = id == "voice2", accent = accent, modifier = Modifier.fillMaxWidth().height(110.dp))
+                            Text(title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text(if (selected) "✓ انتخاب شده" else "برای انتخاب لمس کنید",
+                                color = if (selected) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
                 }
             }
+            Text(
+                "توجه: تفاوت واقعی صداها به مدل نصب‌شده بستگی دارد.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall,
+            )
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("متن‌های نمونه", style = MaterialTheme.typography.titleMedium)
@@ -415,12 +442,18 @@ fun StudioScreen(
 
             // Primary Pill CTA
             val isSynthesizing = synthesisState is SynthesisUiState.Synthesizing
+            val buttonGlow by infiniteTransition.animateFloat(
+                initialValue = 0.25f, targetValue = 0.85f,
+                animationSpec = infiniteRepeatable(tween(1800), RepeatMode.Reverse),
+                label = "button_glow",
+            )
             Button(
                 onClick = onSynthesize,
                 enabled = !isSynthesizing,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp)
+                    .height(58.dp)
+                    .border(1.dp, Color(0xFF58DFFF).copy(alpha = buttonGlow), RoundedCornerShape(50))
                     .testTag("synthesize_button"),
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
@@ -550,5 +583,54 @@ fun StudioScreen(
 
             Spacer(Modifier.height(12.dp))
         }
+    }
+}
+
+/** Portraits are drawn locally as vector shapes; no remote assets or network access. */
+@Composable
+private fun AvinaVoicePortrait(isMale: Boolean, accent: Color, modifier: Modifier = Modifier) {
+    val floatAnim = rememberInfiniteTransition(label = "avatar_glow")
+    val glow by floatAnim.animateFloat(
+        initialValue = 0.18f, targetValue = 0.45f,
+        animationSpec = infiniteRepeatable(tween(1900), RepeatMode.Reverse),
+        label = "avatar_pulse",
+    )
+    Canvas(modifier = modifier.clip(RoundedCornerShape(18.dp))
+        .background(Brush.verticalGradient(listOf(Color(0xFF1B234F), Color(0xFF29173E))))) {
+        val w = size.width
+        val h = size.height
+        val center = Offset(w / 2, h * 0.47f)
+        drawCircle(accent.copy(alpha = glow), radius = w * 0.44f, center = center)
+        // shoulders and jacket
+        drawOval(Color(0xFF11182F), topLeft = Offset(w * 0.15f, h * 0.76f),
+            size = androidx.compose.ui.geometry.Size(w * 0.70f, h * 0.43f))
+        if (!isMale) {
+            drawOval(Color(0xFF1C1432), topLeft = Offset(w * 0.27f, h * 0.15f),
+                size = androidx.compose.ui.geometry.Size(w * 0.46f, h * 0.73f))
+        }
+        drawOval(Color(0xFFE4AC92), topLeft = Offset(w * 0.35f, h * 0.26f),
+            size = androidx.compose.ui.geometry.Size(w * 0.30f, h * 0.48f))
+        // hair silhouette
+        drawArc(Color(0xFF151325), 180f, 180f, useCenter = true,
+            topLeft = Offset(w * 0.32f, h * 0.16f),
+            size = androidx.compose.ui.geometry.Size(w * 0.36f, h * 0.32f))
+        if (isMale) {
+            drawArc(Color(0xFF312124), 0f, 180f, useCenter = true,
+                topLeft = Offset(w * 0.38f, h * 0.53f),
+                size = androidx.compose.ui.geometry.Size(w * 0.24f, h * 0.19f))
+        }
+        // headphones
+        drawArc(accent, 190f, 160f, useCenter = false,
+            topLeft = Offset(w * 0.28f, h * 0.19f),
+            size = androidx.compose.ui.geometry.Size(w * 0.44f, h * 0.52f),
+            style = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round))
+        drawRoundRect(accent, topLeft = Offset(w * 0.27f, h * 0.43f),
+            size = androidx.compose.ui.geometry.Size(w * 0.075f, h * 0.19f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx()))
+        drawRoundRect(accent, topLeft = Offset(w * 0.65f, h * 0.43f),
+            size = androidx.compose.ui.geometry.Size(w * 0.075f, h * 0.19f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx()))
+        drawCircle(Color(0xFF10152F), radius = w * 0.012f, center = Offset(w * 0.44f, h * 0.48f))
+        drawCircle(Color(0xFF10152F), radius = w * 0.012f, center = Offset(w * 0.56f, h * 0.48f))
     }
 }
