@@ -2,6 +2,10 @@ package com.example.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -161,6 +165,64 @@ fun StudioScreen(
                 }
             }
 
+            // Lightweight animated neon waveform; animations run on the UI thread without network assets.
+            val infiniteTransition = rememberInfiniteTransition(label = "avina_wave")
+            val pulse by infiniteTransition.animateFloat(
+                initialValue = 0.75f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1500, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+                label = "wave_pulse",
+            )
+            Surface(
+                shape = RoundedCornerShape(26.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0xFF111A41), Color(0xFF2C174E), Color(0xFF101D42))
+                            )
+                        )
+                        .padding(vertical = 22.dp, horizontal = 18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text("✦ آوینا", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        "صدای فارسی، حتی بدون اینترنت",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.height(78.dp),
+                    ) {
+                        val heights = listOf(16, 28, 48, 70, 40, 26, 60, 74, 42, 22, 38, 58, 28, 16)
+                        heights.forEachIndexed { index, height ->
+                            Box(
+                                Modifier
+                                    .width(7.dp)
+                                    .height((height * (if (index % 2 == 0) pulse else 1.75f - pulse)).dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(Color(0xFF43D9FF), Color(0xFFB16BFF), Color(0xFFF16CFF))
+                                        )
+                                    )
+                            )
+                        }
+                    }
+                    Text("متن را بنویسید، گوینده را انتخاب کنید و بشنوید", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+
             // Single compact row; no large white container around the voice options.
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -172,13 +234,14 @@ fun StudioScreen(
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.padding(end = 4.dp),
                 )
-                listOf("voice1" to "زن", "voice2" to "مرد", "parisa" to "پریسا").forEach { (id, label) ->
+                listOf("voice1" to "👩 صدای زن", "voice2" to "👨 صدای مرد", "parisa" to "✦ پریسا").forEach { (id, label) ->
                     val selected = settings.activeVoiceId.ifBlank { "parisa" } == id
                     FilterChip(
                         selected = selected,
                         onClick = { onSelectPresetVoice(id) },
                         label = { Text(label) },
                         shape = RoundedCornerShape(16.dp),
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer),
                         modifier = Modifier.testTag("voice_preset_$id"),
                     )
                 }
