@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,13 +31,12 @@ import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
@@ -98,61 +98,56 @@ fun VoicesScreen(
     ) {
         LazyColumn(
             modifier = Modifier
-                .widthIn(max = 720.dp)
+                .widthIn(max = 640.dp)
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "شبیه‌سازی صدا (Voice Cloning)",
-                    style = MaterialTheme.typography.headlineSmall,
+                    text = "صداهای مرجع",
+                    style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
-                    text = "مدل cilla-mini با دریافت ۳ تا ۱۰ ثانیه صدای تمیز و بدون موسیقی پس‌زمینه، لحن و تن صدا را به‌صورت آفلاین شبیه‌سازی می‌کند.",
+                    text = "یک نمونه صدای ۳ تا ۱۰ ثانیه‌ای ضبط کنید یا فایل WAV انتخاب کنید.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            // Record Voice Prompt Card
             item {
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text(
-                            text = "ضبط نمونه صدای مرجع (۲۴ kHz Mono)",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-
                         OutlinedTextField(
                             value = voiceLabel,
                             onValueChange = { voiceLabel = it },
-                            label = { Text("نام پروفایل صدا") },
+                            label = { Text("نام صدا") },
                             singleLine = true,
                             enabled = !isRecording,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                         )
 
                         if (isRecording) {
                             MicLevelMeter(level = micLevel)
                             Text(
-                                text = String.format(Locale.US, "در حال ضبط... %.1f / 10.0 ثانیه", recordedSeconds),
+                                text = String.format(Locale.US, "در حال ضبط... %.1f / 10.0s", recordedSeconds),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary,
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
 
                         if (permissionDeniedNote) {
                             Text(
-                                text = "دسترسی میکروفون رد شد. برای ضبط صدا دسترسی میکروفون را بدهید یا یک فایل WAV آماده وارد کنید.",
+                                text = "برای ضبط صدا، مجوز میکروفون لازم است یا از «انتخاب WAV» استفاده کنید.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
@@ -182,7 +177,7 @@ fun VoicesScreen(
                                     .weight(1f)
                                     .minimumInteractiveComponentSize()
                                     .testTag("record_voice_button"),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(50),
                                 colors = if (isRecording) {
                                     ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                                 } else {
@@ -192,22 +187,23 @@ fun VoicesScreen(
                                 Icon(
                                     imageVector = if (isRecording) Icons.Rounded.Stop else Icons.Rounded.Mic,
                                     contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(Modifier.width(6.dp))
-                                Text(if (isRecording) "توقف و ذخیره" else "ضبط صدا")
+                                Text(if (isRecording) "توقف" else "ضبط صدا")
                             }
 
-                            FilledTonalButton(
+                            OutlinedButton(
                                 onClick = { audioPickerLauncher.launch(arrayOf("audio/*", "*/*")) },
                                 enabled = !isRecording,
                                 modifier = Modifier
                                     .minimumInteractiveComponentSize()
                                     .testTag("import_voice_button"),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(50),
                             ) {
-                                Icon(Icons.Rounded.AudioFile, contentDescription = null)
+                                Icon(Icons.Rounded.AudioFile, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("انتخاب WAV")
+                                Text("فایل WAV")
                             }
                         }
                     }
@@ -216,29 +212,30 @@ fun VoicesScreen(
 
             if (voices.isEmpty()) {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.RecordVoiceOver,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(32.dp),
                             )
                             Text(
-                                text = "هنوز نمونه صدایی ثبت نشده است",
-                                style = MaterialTheme.typography.titleMedium,
+                                text = "هنوز نمونه صدایی وجود ندارد",
+                                style = MaterialTheme.typography.titleSmall,
                             )
                             Text(
-                                text = "یک نمونه ۳ تا ۱۰ ثانیه‌ای ضبط کنید، فایل WAV وارد کنید، یا پس از دانلود مدل از نمونه‌های prompts/ استفاده کنید.",
+                                text = "از دکمه‌های بالا صدا ضبط یا وارد کنید.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -249,22 +246,20 @@ fun VoicesScreen(
                 items(voices, key = { it.id }) { voice ->
                     val isSelected = activeVoiceId == voice.id || (activeVoiceId.isEmpty() && voices.firstOrNull()?.id == voice.id)
                     val thisPlaying = isPlaying && playingClipId == voice.id
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) {
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                            } else {
-                                MaterialTheme.colorScheme.surface
-                            }
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colorScheme.outlineVariant,
                         ),
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             IconButton(
                                 onClick = { onSelectVoice(voice.id) },
@@ -278,23 +273,15 @@ fun VoicesScreen(
                             }
 
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = voice.label,
-                                    style = MaterialTheme.typography.titleSmall,
-                                )
-                                val sourceTag = when (voice.source) {
-                                    VoiceSource.RECORDED -> "ضبط‌شده"
-                                    VoiceSource.IMPORTED -> "واردشده"
-                                    VoiceSource.MODEL_PROMPT -> "مخزن cilla-mini"
-                                }
+                                Text(text = voice.label, style = MaterialTheme.typography.titleSmall)
                                 val durText = if (voice.isSafetensorsCache) {
-                                    "KV Cache (.safetensors)"
+                                    "KV Cache"
                                 } else {
-                                    String.format(Locale.US, "%.1fs • WAV", voice.durationSec)
+                                    String.format(Locale.US, "%.1fs", voice.durationSec)
                                 }
                                 Text(
-                                    text = "$sourceTag • $durText",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    text = durText,
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -306,7 +293,7 @@ fun VoicesScreen(
                                 ) {
                                     Icon(
                                         imageVector = if (thisPlaying) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
-                                        contentDescription = if (thisPlaying) "توقف" else "پخش نمونه",
+                                        contentDescription = if (thisPlaying) "توقف" else "پخش",
                                         tint = MaterialTheme.colorScheme.primary,
                                     )
                                 }
@@ -320,7 +307,7 @@ fun VoicesScreen(
                                     Icon(
                                         imageVector = Icons.Rounded.Delete,
                                         contentDescription = "حذف صدا",
-                                        tint = MaterialTheme.colorScheme.error,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
@@ -329,7 +316,7 @@ fun VoicesScreen(
                 }
             }
 
-            item { Spacer(Modifier.height(16.dp)) }
+            item { Spacer(Modifier.height(12.dp)) }
         }
     }
 }
