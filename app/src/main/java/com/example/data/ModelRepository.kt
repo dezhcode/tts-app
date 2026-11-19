@@ -3,6 +3,7 @@ package com.example.data
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.example.tts.PhononPocketTtsEngine
 import com.example.tts.OnnxPocketTtsEngine
 import com.example.tts.SafetensorsPocketTtsEngine
 import com.example.tts.TtsEngine
@@ -170,11 +171,18 @@ class ModelRepository(private val context: Context) {
         )
     }
 
+    private fun hasPhononBundle(): Boolean = runCatching {
+        context.assets.open("phonon-runtime/index.js").close()
+        context.assets.open("cilla-mini/phonon/model/config.json").close()
+        true
+    }.getOrDefault(false)
+
     suspend fun loadEngine(): TtsEngine? = withContext(Dispatchers.IO) {
         val tok = getTokenizerFile() ?: return@withContext null
         val cfg = getConfigFile()
         val inv = inspectInventory()
         return@withContext when {
+            hasPhononBundle() -> PhononPocketTtsEngine.load(context)
             inv.onnxReady -> OnnxPocketTtsEngine.load(onnxDir, tok, cfg)
             inv.safetensorsReady -> {
                 val st = getSafetensorsFile() ?: return@withContext null
