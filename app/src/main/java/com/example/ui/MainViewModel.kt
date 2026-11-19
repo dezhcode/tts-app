@@ -191,19 +191,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _synthesisState.value = SynthesisUiState.Synthesizing(1, 1, 0)
             runCatching {
                 val selectedPreset = cfg.activeVoiceId.takeIf { it in setOf("parisa", "voice1", "voice2") } ?: "parisa"
-                val activeVoice = null as VoicePromptItem?
-
-                val voiceEmbedding = if (activeVoice != null) {
-                    val audio = if (activeVoice.isSafetensorsCache) null else {
-                        withContext(Dispatchers.IO) {
-                            WavAudioUtils.readWavAs24kMono(activeVoice.file)
-                        }
-                    }
-                    val stateFile = if (activeVoice.isSafetensorsCache) activeVoice.file else null
-                    engine.encodeVoicePrompt(activeVoice.id, activeVoice.label, audio, stateFile)
-                } else {
-                    engine.encodeVoicePrompt(selectedPreset, selectedPreset, null, null)
-                }
+                val voiceEmbedding = engine.encodeVoicePrompt(selectedPreset, selectedPreset, null, null)
 
                 val res = engine.synthesize(
                     normalizedText = textForModel,
