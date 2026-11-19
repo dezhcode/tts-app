@@ -72,7 +72,7 @@ import com.example.ui.components.InteractiveWaveformView
 import java.util.Locale
 
 private val minimalPresets = listOf(
-    "خوشامد" to "سلام! با مدل سیلا مینی می‌توانم متن‌های فارسی را کاملاً آفلاین به گفتار طبیعی تبدیل کنم.",
+    "خوشامد" to "سلام! با Avina می‌توانم متن‌های فارسی را کاملاً آفلاین به گفتار طبیعی تبدیل کنم.",
     "شعر" to "الا یا ایها الساقی ادر کاسا و ناولها؛ که عشق آسان نمود اول ولی افتاد مشکل‌ها.",
     "اعداد" to "امروز چهاردهم آبان ۱۴۰۵ است و پردازش صوتی با نرخ ۲۴ کیلوهرتز انجام می‌شود.",
 )
@@ -145,7 +145,7 @@ fun StudioScreen(
                             text = if (modelState is ModelEngineState.Error) {
                                 modelState.message
                             } else {
-                                "فایل‌های مدل cilla-mini نصب نشده‌اند"
+                                "فایل‌های مدل آفلاین نصب نشده‌اند"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -161,52 +161,26 @@ fun StudioScreen(
                 }
             }
 
-            // Compact voice picker: all available presets visible at a glance.
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface,
+            // Single compact row; no large white container around the voice options.
+            Row(
                 modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Text("انتخاب گوینده", style = MaterialTheme.typography.titleMedium)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        listOf(
-                            "voice1" to "زن",
-                            "voice2" to "مرد",
-                            "parisa" to "پریسا",
-                        ).forEach { (id, label) ->
-                            val selected = settings.activeVoiceId.ifBlank { "parisa" } == id
-                            Surface(
-                                onClick = { onSelectPresetVoice(id) },
-                                shape = RoundedCornerShape(16.dp),
-                                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                border = BorderStroke(
-                                    if (selected) 2.dp else 1.dp,
-                                    if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                ),
-                                modifier = Modifier.weight(1f).testTag("voice_preset_$id"),
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(vertical = 13.dp, horizontal = 4.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                                ) {
-                                    Text(label, style = MaterialTheme.typography.titleMedium)
-                                    Text(
-                                        if (selected) "● انتخاب‌شده" else "انتخاب",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        }
-                    }
+                Text(
+                    "گوینده",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+                listOf("voice1" to "زن", "voice2" to "مرد", "parisa" to "پریسا").forEach { (id, label) ->
+                    val selected = settings.activeVoiceId.ifBlank { "parisa" } == id
+                    FilterChip(
+                        selected = selected,
+                        onClick = { onSelectPresetVoice(id) },
+                        label = { Text(label) },
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.testTag("voice_preset_$id"),
+                    )
                 }
             }
 
