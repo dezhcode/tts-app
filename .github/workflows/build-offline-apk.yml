@@ -56,48 +56,37 @@ jobs:
           test -s app/src/main/assets/phonon-runtime/index.js
           test -s app/src/main/assets/phonon-runtime/worker.js
           test -s app/src/main/assets/phonon-runtime/wasm/phonon_tts_bg.wasm
-      - name: Restore persistent release signing key
-        env:
-          AVINA_KEYSTORE_BASE64: ${{ secrets.AVINA_KEYSTORE_BASE64 }}
-          STORE_PASSWORD: ${{ secrets.AVINA_STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.AVINA_KEY_PASSWORD }}
+      - name: Generate debug signing key
         run: |
-          set -euo pipefail
-          test -n "$AVINA_KEYSTORE_BASE64" || { echo "::error::Set AVINA_KEYSTORE_BASE64 repository secret"; exit 1; }
-          test -n "$STORE_PASSWORD" || { echo "::error::Set AVINA_STORE_PASSWORD repository secret"; exit 1; }
-          test -n "$KEY_PASSWORD" || { echo "::error::Set AVINA_KEY_PASSWORD repository secret"; exit 1; }
-          printf '%s' "$AVINA_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/avina-release.jks"
-          echo "KEYSTORE_PATH=$RUNNER_TEMP/avina-release.jks" >> "$GITHUB_ENV"
-      - name: Build signed release APK
-        env:
-          STORE_PASSWORD: ${{ secrets.AVINA_STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.AVINA_KEY_PASSWORD }}
-        run: gradle :app:assembleRelease --stacktrace --no-daemon
+          keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+      - name: Build debug-signed APK
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
       - name: Verify signature and prepare APK
         run: |
           set -euo pipefail
-          APK=$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -type f -print -quit)
-          test -n "$APK" || { echo "::error::Release APK not found"; exit 1; }
+          APK=$(find app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' -type f -print -quit)
+          test -n "$APK" || { echo "::error::Debug APK not found"; exit 1; }
           APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner -type f | sort -V | tail -1)
           test -n "$APKSIGNER" || { echo "::error::apksigner not found"; exit 1; }
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           cp "$APK" Avina-0.1.0.apk
-      - name: Upload signed APK artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Avina-0.1.0
           path: Avina-0.1.0.apk
           if-no-files-found: error
-      - name: Publish signed APK to GitHub Releases
+      - name: Publish APK to GitHub Releases
         if: github.ref == 'refs/heads/feature/bundled-cilla-mini'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           TAG="v0.1.0"
+          NOTES="Avina 0.1.0 Android APK. Signed with a temporary debug key for testing only. Not suitable for production distribution or reliable upgrades."
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" Avina-0.1.0.apk --clobber
-            gh release edit "$TAG" --title "Avina 0.1.0" --notes "Signed Android release APK (version 0.1.0). Download Avina-0.1.0.apk directly." --prerelease=false
+            gh release edit "$TAG" --title "Avina 0.1.0" --notes "$NOTES" --prerelease
           else
-            gh release create "$TAG" Avina-0.1.0.apk --target "$GITHUB_SHA" --title "Avina 0.1.0" --notes "Signed Android release APK (version 0.1.0). Download Avina-0.1.0.apk directly." --latest
+            gh release create "$TAG" Avina-0.1.0.apk --target "$GITHUB_SHA" --title "Avina 0.1.0" --notes "$NOTES" --prerelease
           fi
