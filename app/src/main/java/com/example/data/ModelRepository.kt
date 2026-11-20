@@ -190,7 +190,18 @@ class ModelRepository(private val context: Context) {
             ))
         }
         val totalBytes = statuses.sumOf { it.sizeBytes } + getPromptFiles().sumOf { it.length() }
+        val bundledVoices = listOf(
+            BundledVoiceAsset("parisa", "پریسا", NarratorGender.FEMALE, "cilla-mini/phonon/model/voices/parisa.safetensors", true),
+            BundledVoiceAsset("voice1", "صدای زن", NarratorGender.FEMALE, "cilla-mini/phonon/model/voices/voice1.safetensors", true),
+            BundledVoiceAsset("voice2", "صدای مرد", NarratorGender.MALE, "cilla-mini/phonon/model/voices/voice2.safetensors", true),
+        ).filter { asset -> runCatching {
+            context.assets.open(asset.urlPath).use { it.read() != -1 }
+        }.getOrDefault(false) }
         return ModelInventory(
+            phononReady = phononReady,
+            phononRuntimeReady = phononReady,
+            availablePhononVoices = bundledVoices,
+            missingPhononAssets = missingPhononAssets(),
             safetensorsReady = stFile != null || phononReady,
             onnxReady = hasMainOnnx && hasDecOnnx,
             tokenizerReady = tokFile != null || phononReady,
@@ -206,6 +217,8 @@ class ModelRepository(private val context: Context) {
         "cilla-mini/phonon/model/tokenizer.json",
         "cilla-mini/phonon/model/model.safetensors",
         "cilla-mini/phonon/model/voices/parisa.safetensors",
+        "cilla-mini/phonon/model/voices/voice1.safetensors",
+        "cilla-mini/phonon/model/voices/voice2.safetensors",
     ).filter { path -> runCatching { context.assets.open(path).use { it.read() != -1 } }.getOrDefault(false).not() }
 
     private fun hasPhononBundle(): Boolean = missingPhononAssets().isEmpty()
