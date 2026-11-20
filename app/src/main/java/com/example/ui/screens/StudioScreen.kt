@@ -86,6 +86,7 @@ import com.example.ui.theme.CillaMotion
 import com.example.ui.theme.CillaRadius
 import com.example.ui.theme.CillaSpacing
 import com.example.ui.theme.CillaStroke
+import com.example.ui.theme.LocalCillaFonts
 import java.util.Locale
 
 private val studioPresets = listOf(
@@ -139,6 +140,7 @@ fun StudioScreen(
 
     val isSynthesizing = synthesisState is SynthesisUiState.Synthesizing
     val activeVoiceDisplayName = voiceAvailability.activeVoiceLabel
+    val studioFonts = LocalCillaFonts.current
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -208,11 +210,11 @@ fun StudioScreen(
                         .testTag("text_input_field"),
                     minLines = 7,
                     maxLines = 12,
-                    textStyle = MaterialTheme.typography.bodyLarge,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = studioFonts.persianUi),
                     placeholder = {
                         Text(
                             text = "متن را بنویسید...",
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = studioFonts.persianUi),
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.48f),
                         )
                     },
