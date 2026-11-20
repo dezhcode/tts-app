@@ -69,7 +69,6 @@ import com.example.ui.components.CillaBottomBar
 import com.example.ui.components.CillaHairline
 import com.example.ui.components.DockItem
 import com.example.ui.components.ModelStatusOrb
-import com.example.ui.screens.FontLibraryScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.ModelSetupSheetContent
 import com.example.ui.screens.StudioScreen
@@ -81,7 +80,6 @@ import com.example.ui.theme.LocalCillaFonts
 
 const val ROUTE_STUDIO = "studio"
 const val ROUTE_LIBRARY = "library"
-const val ROUTE_FONTS = "fonts"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -162,13 +160,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                 unselectedIcon = Icons.Outlined.LibraryMusic,
                 testTag = "nav_library",
             ),
-            DockItem(
-                route = ROUTE_FONTS,
-                label = "فونت‌ها",
-                selectedIcon = Icons.Rounded.TextFields,
-                unselectedIcon = Icons.Outlined.TextFields,
-                testTag = "nav_fonts",
-            ),
+
         )
     }
 
@@ -197,14 +189,14 @@ fun CillaTtsApp(viewModel: MainViewModel) {
         ) {
             // Minimal Avina Header — Brand name + essential model status only
             val avinaFonts = LocalCillaFonts.current
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = CillaSpacing.screenHorizontal, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = CillaSpacing.screenHorizontal, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -222,19 +214,18 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                                 .background(MaterialTheme.colorScheme.primary),
                         )
                     }
+                    ModelStatusOrb(
+                        label = when (modelState) {
+                            is ModelEngineState.Ready -> "آماده"
+                            is ModelEngineState.Loading -> "بارگذاری..."
+                            else -> "مدل"
+                        },
+                        isReady = modelState is ModelEngineState.Ready,
+                        isLoading = modelState is ModelEngineState.Loading,
+                        onClick = { showModelSheet = true },
+                        modifier = Modifier.testTag("nav_model"),
+                    )
                 }
-
-                ModelStatusOrb(
-                    label = when (modelState) {
-                        is ModelEngineState.Ready -> "آماده"
-                        is ModelEngineState.Loading -> "بارگذاری..."
-                        else -> "نصب مدل"
-                    },
-                    isReady = modelState is ModelEngineState.Ready,
-                    isLoading = modelState is ModelEngineState.Loading,
-                    onClick = { showModelSheet = true },
-                    modifier = Modifier.testTag("nav_model"),
-                )
             }
 
             CillaHairline()
@@ -272,7 +263,6 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                         mapOf(
                             ROUTE_STUDIO to 0,
                             ROUTE_LIBRARY to 1,
-                            ROUTE_FONTS to 2,
                         )
                     }
 
@@ -375,21 +365,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                                 onDeleteClip = viewModel::deleteClip,
                             )
                         }
-                        composable(ROUTE_FONTS) {
-                            FontLibraryScreen(
-                                typographySettings = settings.typography,
-                                customFonts = customFonts,
-                                onSelectPersianUiFont = viewModel::selectPersianUiFont,
-                                onSelectPersianHeadingFont = viewModel::selectPersianHeadingFont,
-                                onSelectPersianWeight = viewModel::selectPersianWeight,
-                                onSelectEnglishUiFont = viewModel::selectEnglishUiFont,
-                                onSelectEnglishHeadingFont = viewModel::selectEnglishHeadingFont,
-                                onSelectEnglishWeight = viewModel::selectEnglishWeight,
-                                onImportCustomFontFile = viewModel::importCustomFontFile,
-                                onRemoveCustomFontFile = viewModel::removeCustomFontFile,
-                                onResetDefaults = viewModel::resetTypographyDefaults,
-                            )
-                        }
+
                     }
                 }
 
