@@ -68,12 +68,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.example.data.ClipRecord
+import com.example.data.NarratorGender
 import com.example.data.UserSettings
 import com.example.data.VoicePromptItem
 import com.example.ui.ModelEngineState
 import com.example.ui.SynthesisUiState
 import com.example.ui.components.AcousticRibbonVisualizer
 import com.example.ui.components.InteractiveWaveformView
+import com.example.ui.components.StudioNarratorSelector
 import java.util.Locale
 
 private val bespokePresets = listOf(
@@ -89,11 +91,12 @@ fun StudioScreen(
     settings: UserSettings,
     modelState: ModelEngineState,
     synthesisState: SynthesisUiState,
-    activeVoice: VoicePromptItem?,
+    activeCustomVoice: VoicePromptItem?,
     isPlaying: Boolean,
     playingClipId: String?,
     playProgress: Float,
     onTextChange: (String) -> Unit,
+    onSelectNarratorGender: (NarratorGender) -> Unit,
     onSynthesize: () -> Unit,
     onPlayClip: (ClipRecord) -> Unit,
     onShareClip: (ClipRecord) -> Unit,
@@ -190,6 +193,11 @@ fun StudioScreen(
                             isSynthesizing = isSynthesizing,
                         )
                         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                            val narratorTag = when {
+                                activeCustomVoice != null -> "CUSTOM"
+                                settings.narratorGender == NarratorGender.FEMALE -> "FEMALE"
+                                else -> "MALE"
+                            }
                             Text(
                                 text = when {
                                     isSynthesizing -> {
@@ -197,7 +205,7 @@ fun StudioScreen(
                                         "SYNTH ${s.sentenceIdx}/${s.totalSentences} · F${s.frames}"
                                     }
                                     isPlaying -> "PLAYING · 24kHz"
-                                    else -> "CILLA-MINI · 18.2M"
+                                    else -> "CILLA-MINI · $narratorTag"
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -430,7 +438,16 @@ fun StudioScreen(
                 }
             }
 
-            // Asymmetric One-Thumb Hardware Action Bar (Primary Vermilion Pill + Voice Switch Capsule)
+            // Direct Female / Male Narrator Switcher inside Studio
+            StudioNarratorSelector(
+                selectedGender = settings.narratorGender,
+                isCustomVoiceActive = activeCustomVoice != null,
+                customVoiceLabel = activeCustomVoice?.label,
+                onSelectGender = onSelectNarratorGender,
+                onOpenCustomVoices = onNavigateToVoices,
+            )
+
+            // Asymmetric One-Thumb Hardware Action Bar (Primary Vermilion Pill + Custom Voice Cloning Capsule)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -466,12 +483,19 @@ fun StudioScreen(
                     )
                 }
 
-                // Tactile Voice Profile Capsule
+                // Tactile Custom Voice Profile Capsule
                 Surface(
                     onClick = onNavigateToVoices,
                     shape = RoundedCornerShape(50),
                     color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    border = BorderStroke(
+                        width = if (activeCustomVoice != null) 1.5.dp else 1.dp,
+                        color = if (activeCustomVoice != null) {
+                            MaterialTheme.colorScheme.tertiary
+                        } else {
+                            MaterialTheme.colorScheme.outlineVariant
+                        },
+                    ),
                     modifier = Modifier
                         .height(58.dp)
                         .testTag("active_voice_selector"),
@@ -485,23 +509,33 @@ fun StudioScreen(
                             modifier = Modifier
                                 .size(30.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.secondaryContainer),
+                                .background(
+                                    if (activeCustomVoice != null) {
+                                        MaterialTheme.colorScheme.tertiaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    }
+                                ),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.RecordVoiceOver,
-                                contentDescription = "انتخاب صدا",
-                                tint = MaterialTheme.colorScheme.secondary,
+                                contentDescription = "صدای سفارشی",
+                                tint = if (activeCustomVoice != null) {
+                                    MaterialTheme.colorScheme.tertiary
+                                } else {
+                                    MaterialTheme.colorScheme.secondary
+                                },
                                 modifier = Modifier.size(16.dp),
                             )
                         }
                         Text(
-                            text = activeVoice?.label ?: "صدای پایه",
+                            text = activeCustomVoice?.label ?: "صدای سفارشی",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.widthIn(max = 92.dp),
+                            modifier = Modifier.widthIn(max = 96.dp),
                         )
                     }
                 }
@@ -564,7 +598,7 @@ fun StudioScreen(
                                         .background(MaterialTheme.colorScheme.secondary),
                                 )
                                 Text(
-                                    text = "نوار خروجی آماده",
+                                    text = clip.voiceLabel.ifBlank { "نوار خروجی آماده" },
                                     style = MaterialTheme.typography.labelLarge,
                                 )
                             }

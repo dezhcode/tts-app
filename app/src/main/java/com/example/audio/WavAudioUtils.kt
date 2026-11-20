@@ -181,4 +181,55 @@ object WavAudioUtils {
         }
         return raw.map { (it / maxPeak).coerceIn(0.08f, 1f) }
     }
+
+    /**
+     * Synthesizes a deterministic formant-shaped vocal-tract conditioning prompt at 24 kHz
+     * so built-in Female (F0 ~215 Hz) and Male (F0 ~115 Hz) Studio narrators condition the
+     * neural encoder with realistic pitch and vocal-tract formant characteristics.
+     */
+    fun generateVocalReferencePrompt(
+        baseFreqHz: Float,
+        isFemale: Boolean,
+        sampleRate: Int = 24_000,
+        durationSec: Float = 1.4f,
+    ): FloatArray {
+        val totalSamples = (sampleRate * durationSec).toInt().coerceAtLeast(sampleRate / 2)
+        val out = FloatArray(totalSamples)
+        val formants = if (isFemale) {
+            floatArrayOf(520f, 1750f, 2800f)
+        } else {
+            floatArrayOf(400f, 1150f, 2400f)
+        }
+        val bandwidths = if (isFemale) {
+            floatArrayOf(110f, 160f, 220f)
+        } else {
+            floatArrayOf(90f, 130f, 190f)
+        }
+        val twoPi = (2.0 * Math.PI).toFloat()
+        val maxHarmonic = if (isFemale) 14 else 18
+
+        for (i in 0 until totalSamples) {
+            val t = i.toFloat() / sampleRate.toFloat()
+            // Gentle natural prosodic pitch contour
+            val f0 = baseFreqHz * (1f + 0.045f * kotlin.math.sin(twoPi * 1.6f * t))
+            val env = when {
+                t < 0.08f -> t / 0.08f
+                t > durationSec - 0.12f -> ((durationSec - t) / 0.12f).coerceAtLeast(0f)
+                else -> 0.85f + 0.15f * kotlin.math.sin(twoPi * 2.8f * t)
+            }
+            var sum = 0f
+            for (h in 1..maxHarmonic) {
+                val freq = f0 * h
+                // Formant resonance gain across F1, F2, F3
+                var gain = 0.25f / h
+                for (fIdx in formants.indices) {
+                    val diff = (freq - formants[fIdx]) / bandwidths[fIdx]
+                    gain += 0.55f / (1f + diff * diff)
+                }
+                sum += gain * kotlin.math.sin(twoPi * freq * t)
+            }
+            out[i] = (sum * env * 0.16f).coerceIn(-0.92f, 0.92f)
+        }
+        return out
+    }
 }

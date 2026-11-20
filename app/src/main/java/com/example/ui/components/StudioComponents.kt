@@ -23,6 +23,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,13 +35,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Face3
+import androidx.compose.material.icons.rounded.Face6
 import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import com.example.data.NarratorGender
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -706,6 +713,232 @@ fun FloatingStudioDock(
                                     style = MaterialTheme.typography.labelLarge,
                                     color = fg,
                                     maxLines = 1,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Tactile dual-card narrator switcher for the Studio screen allowing one-tap selection
+ * between built-in Female (خواننده زن - سارا) and Male (خواننده مرد - آرش) Persian voices,
+ * while clearly indicating when a custom cloned voice from the Voices tab is active.
+ */
+@Composable
+fun StudioNarratorSelector(
+    selectedGender: NarratorGender,
+    isCustomVoiceActive: Boolean,
+    customVoiceLabel: String?,
+    onSelectGender: (NarratorGender) -> Unit,
+    onOpenCustomVoices: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = 1.dp,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.RecordVoiceOver,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = "انتخاب جنسیت",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+
+                if (isCustomVoiceActive && !customVoiceLabel.isNullOrBlank()) {
+                    Surface(
+                        onClick = onOpenCustomVoices,
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.75f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f)),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.tertiary),
+                            )
+                            Text(
+                                text = "سفارشی: $customVoiceLabel",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = if (selectedGender == NarratorGender.FEMALE) "سارا · ۲۱۵Hz" else "آرش · ۱۱۵Hz",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                NarratorGender.entries.forEach { gender ->
+                    val isFemale = gender == NarratorGender.FEMALE
+                    val isSelected = !isCustomVoiceActive && selectedGender == gender
+                    val accentColor = if (isFemale) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.secondary
+                    }
+                    val onAccentColor = if (isFemale) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSecondary
+                    }
+
+                    val cardBg by animateColorAsState(
+                        targetValue = if (isSelected) {
+                            accentColor
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.52f)
+                        },
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                        label = "narrator_card_bg",
+                    )
+                    val borderColor by animateColorAsState(
+                        targetValue = if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant,
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                        label = "narrator_card_border",
+                    )
+                    val titleColor by animateColorAsState(
+                        targetValue = if (isSelected) onAccentColor else MaterialTheme.colorScheme.onSurface,
+                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                        label = "narrator_title_color",
+                    )
+                    val subtitleColor by animateColorAsState(
+                        targetValue = if (isSelected) {
+                            onAccentColor.copy(alpha = 0.86f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                        label = "narrator_subtitle_color",
+                    )
+                    val avatarBg by animateColorAsState(
+                        targetValue = if (isSelected) {
+                            onAccentColor.copy(alpha = 0.22f)
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        },
+                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                        label = "narrator_avatar_bg",
+                    )
+                    val avatarTint by animateColorAsState(
+                        targetValue = if (isSelected) onAccentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                        label = "narrator_avatar_tint",
+                    )
+                    val cardScale by animateFloatAsState(
+                        targetValue = if (isSelected) 1.02f else 1f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium,
+                        ),
+                        label = "narrator_card_scale",
+                    )
+
+                    Surface(
+                        onClick = { onSelectGender(gender) },
+                        shape = RoundedCornerShape(18.dp),
+                        color = cardBg,
+                        border = BorderStroke(1.dp, borderColor),
+                        shadowElevation = if (isSelected) 4.dp else 0.dp,
+                        modifier = Modifier
+                            .weight(1f)
+                            .scale(cardScale)
+                            .minimumInteractiveComponentSize()
+                            .testTag(if (isFemale) "select_female_narrator" else "select_male_narrator"),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(avatarBg),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = if (isFemale) Icons.Rounded.Face3 else Icons.Rounded.Face6,
+                                    contentDescription = gender.roleLabel,
+                                    tint = avatarTint,
+                                    modifier = Modifier.size(21.dp),
+                                )
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                ) {
+                                    Text(
+                                        text = gender.roleLabel,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = titleColor,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    if (isSelected) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(onAccentColor),
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = gender.timbreNote,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = subtitleColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }

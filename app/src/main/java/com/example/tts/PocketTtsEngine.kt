@@ -24,6 +24,7 @@ data class VoiceEmbedding(
     val label: String,
     val latentFrames: List<FloatArray>,
     val precomputedKvState: SafetensorsReader? = null,
+    val pitchScale: Float = 1.0f,
 )
 
 data class SynthesisResult(
@@ -311,7 +312,8 @@ class SafetensorsPocketTtsEngine private constructor(
         }
 
         // 3. Autoregressive continuous latent generation with Drifting / Flow MLP head
-        val rng = Random(42L + tokenIds.sum().toLong())
+        val voiceSeed = voice?.id?.hashCode()?.toLong() ?: 0L
+        val rng = Random(42L + tokenIds.sum().toLong() + voiceSeed)
         var currentLatent = bosEmb?.copyOf(ldim) ?: FloatArray(ldim)
         val generatedLatents = ArrayList<FloatArray>(maxGenFrames)
 
@@ -375,7 +377,7 @@ class SafetensorsPocketTtsEngine private constructor(
         }
 
         // 4. Decode continuous latents to 24 kHz PCM waveform via Mimi Decoder
-        return decodeMimiLatents(generatedLatents)
+        return decodeMimiLatents(generatedLatents, voice)
     }
 
     private fun forwardFlowLmStep(input: FloatArray, cache: LayerCache): FloatArray {
@@ -502,7 +504,10 @@ class SafetensorsPocketTtsEngine private constructor(
         return out
     }
 
-    private fun decodeMimiLatents(latents: List<FloatArray>): FloatArray {
+    private fun decodeMimiLatents(
+        latents: List<FloatArray>,
+        voice: VoiceEmbedding? = null,
+    ): FloatArray {
         if (latents.isEmpty()) return FloatArray(0)
         val hop = config.samplesPerFrame.coerceAtLeast(1)
         val totalSamples = latents.size * hop
@@ -520,6 +525,7 @@ class SafetensorsPocketTtsEngine private constructor(
         )?.let { reader.readFloatTensor(it) }
 
         val ldim = config.latentDim
+        val pitchScale = (voice?.pitchScale ?: 1.0f).coerceIn(0.65f, 1.45f)
         var prevFrame = FloatArray(ldim)
 
         for ((fIdx, frame) in latents.withIndex()) {
@@ -532,13 +538,21 @@ class SafetensorsPocketTtsEngine private constructor(
             val base = fIdx * hop
             for (s in 0 until hop) {
                 val alpha = s.toFloat() / hop.toFloat()
-                // Multi-harmonic synthesis across latent sub-bands modulated by frame interpolation
+                // Multi-harmonic synthesis across latent sub-bands modulated by frame interpolation & voice timbre
                 var sample = 0f
                 val bands = minOf(16, decodedFrame.size)
                 for (b in 0 until bands) {
                     val amp = (1f - alpha) * prevFrame[b] + alpha * decodedFrame[b]
-                    val phase = (base + s) * (b + 1) * 0.015f
-                    sample += amp * kotlin.math.sin(phase)
+                    // Female voices emphasize brighter upper formants; male voices emphasize warmer lower resonance
+                    val timbreWeight = if (pitchScale < 0.95f) {
+                        if (b < 5) 1.25f else 0.78f
+                    } else if (pitchScale > 1.05f) {
+                        if (b in 3..11) 1.18f else 0.92f
+                    } else {
+                        1.0f
+                    }
+                    val phase = (base + s) * (b + 1) * (0.015f * pitchScale)
+                    sample += amp * timbreWeight * kotlin.math.sin(phase)
                 }
                 if (finalConvW != null && finalConvW.isNotEmpty()) {
                     sample *= (0.4f + 0.6f * kotlin.math.abs(finalConvW[s % finalConvW.size]).coerceIn(0f, 1.5f))

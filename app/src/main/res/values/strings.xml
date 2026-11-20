@@ -15,4 +15,7 @@
     <string name="model_ready_badge">مدل آفلاین آماده است</string>
     <string name="hf_repo_url">https://huggingface.co/mehdi-hf/cilla-mini</string>
     <string name="record_permission_rationale">برای ضبط نمونه صدای ۳ تا ۱۰ ثانیه‌ای جهت شبیه‌سازی صدا (Zero-shot Voice Cloning)، دسترسی به میکروفون لازم است.</string>
+    <string name="narrator_selector_title">انتخاب جنسیت</string>
+    <string name="narrator_female_label">زن</string>
+    <string name="narrator_male_label">مرد</string>
 </resources>

@@ -227,7 +227,7 @@ fun VoicesScreen(
                 }
 
                 itemsIndexed(voices, key = { _, v -> v.id }) { index, voice ->
-                    val isSelected = activeVoiceId == voice.id || (activeVoiceId.isEmpty() && index == 0)
+                    val isSelected = activeVoiceId == voice.id
                     val thisPlaying = isPlaying && playingClipId == voice.id
 
                     Surface(

@@ -125,8 +125,8 @@ fun CillaTtsApp(viewModel: MainViewModel) {
     val micLevel by viewModel.voiceRecorder.micLevel.collectAsStateWithLifecycle()
     val recordedSeconds by viewModel.voiceRecorder.elapsedSeconds.collectAsStateWithLifecycle()
 
-    val activeVoice = remember(voices, settings.activeVoiceId) {
-        voices.firstOrNull { it.id == settings.activeVoiceId } ?: voices.firstOrNull()
+    val activeCustomVoice = remember(voices, settings.activeVoiceId) {
+        voices.firstOrNull { it.id == settings.activeVoiceId }
     }
 
     LaunchedEffect(statusBanner) {
@@ -345,11 +345,12 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                                 settings = settings,
                                 modelState = modelState,
                                 synthesisState = synthesisState,
-                                activeVoice = activeVoice,
+                                activeCustomVoice = activeCustomVoice,
                                 isPlaying = isPlaying,
                                 playingClipId = playingClipId,
                                 playProgress = playProgress,
                                 onTextChange = viewModel::updateInputText,
+                                onSelectNarratorGender = viewModel::selectNarratorGender,
                                 onSynthesize = viewModel::synthesizeCurrentText,
                                 onPlayClip = viewModel::togglePlayClip,
                                 onShareClip = { clip ->

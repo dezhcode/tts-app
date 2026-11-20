@@ -16,8 +16,10 @@ import com.example.data.DownloadOutcome
 import com.example.data.DownloadProgress
 import com.example.data.ModelInventory
 import com.example.data.ModelRepository
+import com.example.data.NarratorGender
 import com.example.data.UserSettings
 import com.example.data.VoicePromptItem
+import com.example.data.VoiceSource
 import com.example.tts.EngineDiagnostics
 import com.example.tts.PersianTextNormalizer
 import com.example.tts.TtsEngine
@@ -181,19 +183,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _synthesisState.value = SynthesisUiState.Synthesizing(1, 1, 0)
             runCatching {
-                val activeVoice = _voices.value.firstOrNull { it.id == cfg.activeVoiceId }
-                    ?: _voices.value.firstOrNull()
+                val customVoice = _voices.value.firstOrNull { it.id == cfg.activeVoiceId }
+                val selectedGender = cfg.narratorGender
+                val resolvedVoiceLabel: String
 
-                val voiceEmbedding = if (activeVoice != null) {
-                    val audio = if (activeVoice.isSafetensorsCache) null else {
+                val voiceEmbedding = if (customVoice != null) {
+                    resolvedVoiceLabel = customVoice.label
+                    val audio = if (customVoice.isSafetensorsCache) null else {
                         withContext(Dispatchers.IO) {
-                            WavAudioUtils.readWavAs24kMono(activeVoice.file)
+                            WavAudioUtils.readWavAs24kMono(customVoice.file)
                         }
                     }
-                    val stateFile = if (activeVoice.isSafetensorsCache) activeVoice.file else null
-                    engine.encodeVoicePrompt(activeVoice.id, activeVoice.label, audio, stateFile)
+                    val stateFile = if (customVoice.isSafetensorsCache) customVoice.file else null
+                    engine.encodeVoicePrompt(customVoice.id, customVoice.label, audio, stateFile)
                 } else {
-                    null
+                    resolvedVoiceLabel = selectedGender.fullLabel
+                    val matchingPrompt = findGenderMatchingModelPrompt(selectedGender)
+                    if (matchingPrompt != null) {
+                        val audio = if (matchingPrompt.isSafetensorsCache) null else {
+                            withContext(Dispatchers.IO) {
+                                WavAudioUtils.readWavAs24kMono(matchingPrompt.file)
+                            }
+                        }
+                        val stateFile = if (matchingPrompt.isSafetensorsCache) matchingPrompt.file else null
+                        engine.encodeVoicePrompt(
+                            id = matchingPrompt.id,
+                            label = resolvedVoiceLabel,
+                            audio24k = audio,
+                            stateFile = stateFile,
+                        ).copy(pitchScale = selectedGender.pitchScale)
+                    } else {
+                        val refAudio = withContext(Dispatchers.Default) {
+                            WavAudioUtils.generateVocalReferencePrompt(
+                                baseFreqHz = selectedGender.baseFreqHz,
+                                isFemale = selectedGender == NarratorGender.FEMALE,
+                            )
+                        }
+                        engine.encodeVoicePrompt(
+                            id = selectedGender.id,
+                            label = resolvedVoiceLabel,
+                            audio24k = refAudio,
+                            stateFile = null,
+                        ).copy(pitchScale = selectedGender.pitchScale)
+                    }
                 }
 
                 val res = engine.synthesize(
@@ -211,7 +243,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val savedClip = clipVoiceRepo.saveClip(
                     text = raw,
                     normalizedText = textForModel,
-                    voiceLabel = activeVoice?.label ?: "صدای پایه سیلا",
+                    voiceLabel = resolvedVoiceLabel,
                     pcm24k = res.pcmSamples24k,
                     sampleRate = res.sampleRate,
                     durationSec = res.durationSeconds,
@@ -291,11 +323,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { prefs.setActiveVoiceId(voiceId) }
     }
 
+    fun selectNarratorGender(gender: NarratorGender) {
+        viewModelScope.launch { prefs.setNarratorGender(gender) }
+    }
+
+    private fun findGenderMatchingModelPrompt(gender: NarratorGender): VoicePromptItem? {
+        val modelPrompts = _voices.value.filter { it.source == VoiceSource.MODEL_PROMPT }
+        if (modelPrompts.isEmpty()) return null
+        val keywords = if (gender == NarratorGender.FEMALE) {
+            listOf("female", "woman", "girl", "sara", "zan", "f_", "_f")
+        } else {
+            listOf("male", "man", "boy", "arash", "ali", "mard", "m_", "_m")
+        }
+        return modelPrompts.firstOrNull { item ->
+            val lower = item.file.name.lowercase()
+            keywords.any { kw -> lower.contains(kw) }
+        }
+    }
+
     fun deleteVoice(voice: VoicePromptItem) {
         viewModelScope.launch {
             clipVoiceRepo.deleteVoice(voice)
             if (settings.value.activeVoiceId == voice.id) {
-                prefs.setActiveVoiceId("")
+                prefs.setActiveVoiceId(settings.value.narratorGender.id)
             }
             _voices.value = clipVoiceRepo.listVoicePrompts()
         }
