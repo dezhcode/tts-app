@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import com.example.tts.OnnxPocketTtsEngine
+import com.example.tts.PhononPocketTtsEngine
 import com.example.tts.SafetensorsPocketTtsEngine
 import com.example.tts.TtsEngine
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +16,21 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 
+enum class PhononModelSource {
+    BUNDLED_APK,
+    LOCAL_STORAGE,
+    NONE,
+}
+
+data class BundledVoiceAsset(
+    val id: String,
+    val label: String,
+    val gender: NarratorGender?,
+    val urlPath: String,
+    val isBundledAsset: Boolean,
+    val localFile: File? = null,
+)
+
 data class ModelFileStatus(
     val name: String,
     val exists: Boolean,
@@ -25,15 +41,20 @@ data class ModelFileStatus(
 }
 
 data class ModelInventory(
-    val safetensorsReady: Boolean,
-    val onnxReady: Boolean,
-    val tokenizerReady: Boolean,
-    val configReady: Boolean,
-    val files: List<ModelFileStatus>,
-    val totalSizeMb: Float,
+    val phononReady: Boolean = false,
+    val phononRuntimeReady: Boolean = false,
+    val phononSource: PhononModelSource = PhononModelSource.NONE,
+    val availablePhononVoices: List<BundledVoiceAsset> = emptyList(),
+    val missingPhononAssets: List<String> = emptyList(),
+    val safetensorsReady: Boolean = false,
+    val onnxReady: Boolean = false,
+    val tokenizerReady: Boolean = false,
+    val configReady: Boolean = false,
+    val files: List<ModelFileStatus> = emptyList(),
+    val totalSizeMb: Float = 0f,
 ) {
     val canRunOffline: Boolean
-        get() = tokenizerReady && (safetensorsReady || onnxReady)
+        get() = phononReady || (tokenizerReady && (safetensorsReady || onnxReady))
 }
 
 data class DownloadProgress(
@@ -56,6 +77,8 @@ sealed interface DownloadOutcome {
 class ModelRepository(private val context: Context) {
 
     private val modelDir = File(context.filesDir, "models/cilla-mini").apply { mkdirs() }
+    private val localPhononModelDir = File(modelDir, "phonon/model").apply { mkdirs() }
+    private val localPhononVoicesDir = File(localPhononModelDir, "voices").apply { mkdirs() }
     private val onnxDir = File(modelDir, "onnx").apply { mkdirs() }
     private val promptsDir = File(modelDir, "prompts").apply { mkdirs() }
 
@@ -90,7 +113,142 @@ class ModelRepository(private val context: Context) {
             ?.sortedBy { it.name }
             ?: emptyList()
 
+    private fun assetExistsNonEmpty(path: String): Boolean =
+        runCatching { context.assets.open(path).use { it.read() != -1 } }.getOrDefault(false)
+
+    private fun assetByteSize(path: String): Long =
+        runCatching {
+            context.assets.openFd(path).use { it.length }
+        }.getOrElse {
+            runCatching {
+                context.assets.open(path).use { input ->
+                    var total = 0L
+                    val buf = ByteArray(16 * 1024)
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n <= 0) break
+                        total += n
+                    }
+                    total
+                }
+            }.getOrDefault(0L)
+        }
+
+    fun missingPhononRuntimeAssets(): List<String> = PHONON_RUNTIME_REQUIRED.filterNot(::assetExistsNonEmpty)
+
+    fun hasPhononRuntime(): Boolean = missingPhononRuntimeAssets().isEmpty()
+
+    fun missingBundledPhononModelAssets(): List<String> =
+        PHONON_MODEL_REQUIRED.filter { rel -> !assetExistsNonEmpty("$BUNDLED_MODEL_ASSET_ROOT/$rel") }
+
+    fun hasBundledPhononModel(): Boolean = hasPhononRuntime() && missingBundledPhononModelAssets().isEmpty()
+
+    fun missingLocalPhononModelAssets(): List<String> =
+        PHONON_MODEL_REQUIRED.filter { rel ->
+            val file = File(localPhononModelDir, rel)
+            val minBytes = if (rel.endsWith(".json", ignoreCase = true)) 16L else 1024L
+            !file.isFile || file.length() < minBytes
+        }
+
+    fun hasLocalPhononModel(): Boolean = hasPhononRuntime() && missingLocalPhononModelAssets().isEmpty()
+
+    fun missingPhononAssets(): List<String> {
+        val runtimeMissing = missingPhononRuntimeAssets()
+        val modelMissing = if (missingBundledPhononModelAssets().isEmpty()) {
+            emptyList()
+        } else if (missingLocalPhononModelAssets().isEmpty()) {
+            emptyList()
+        } else {
+            missingBundledPhononModelAssets().map { "cilla-mini/phonon/model/$it" }
+        }
+        return runtimeMissing + modelMissing
+    }
+
+    fun discoverBundledVoices(): List<BundledVoiceAsset> {
+        val voicesAssetDir = "$BUNDLED_MODEL_ASSET_ROOT/voices"
+        val entries = runCatching { context.assets.list(voicesAssetDir).orEmpty() }.getOrDefault(emptyArray())
+        return entries
+            .filter { it.endsWith(".safetensors", ignoreCase = true) }
+            .filter { assetExistsNonEmpty("$voicesAssetDir/$it") }
+            .sorted()
+            .map { fileName ->
+                val id = fileName.substringBeforeLast('.')
+                BundledVoiceAsset(
+                    id = id,
+                    label = displayLabelForVoiceId(id),
+                    gender = inferGenderForVoiceId(id),
+                    urlPath = "../cilla-mini/phonon/model/voices/$fileName",
+                    isBundledAsset = true,
+                    localFile = null,
+                )
+            }
+    }
+
+    fun discoverLocalPhononVoices(): List<BundledVoiceAsset> {
+        val files = localPhononVoicesDir.listFiles()
+            ?.filter { it.isFile && it.extension.equals("safetensors", ignoreCase = true) && it.length() >= 128L }
+            ?.sortedBy { it.name }
+            ?: emptyList()
+        return files.map { file ->
+            val id = file.nameWithoutExtension
+            BundledVoiceAsset(
+                id = id,
+                label = displayLabelForVoiceId(id),
+                gender = inferGenderForVoiceId(id),
+                urlPath = "/local-model/voices/${file.name}",
+                isBundledAsset = false,
+                localFile = file,
+            )
+        }
+    }
+
     fun inspectInventory(): ModelInventory {
+        val runtimeReady = hasPhononRuntime()
+        val bundledReady = hasBundledPhononModel()
+        val localPhononReady = hasLocalPhononModel()
+        val phononSource = when {
+            bundledReady -> PhononModelSource.BUNDLED_APK
+            localPhononReady -> PhononModelSource.LOCAL_STORAGE
+            else -> PhononModelSource.NONE
+        }
+        val phononReady = phononSource != PhononModelSource.NONE
+        val availableVoices = when (phononSource) {
+            PhononModelSource.BUNDLED_APK -> discoverBundledVoices()
+            PhononModelSource.LOCAL_STORAGE -> discoverLocalPhononVoices()
+            PhononModelSource.NONE -> discoverBundledVoices().ifEmpty { discoverLocalPhononVoices() }
+        }
+
+        // Build clean, honest Phonon file status list
+        val statuses = mutableListOf<ModelFileStatus>()
+        statuses.add(
+            ModelFileStatus(
+                name = "phonon-runtime (WASM)",
+                exists = runtimeReady,
+                sizeBytes = if (runtimeReady) assetByteSize("phonon-runtime/wasm/phonon_tts_bg.wasm") else 0L,
+                required = true,
+            )
+        )
+        for (rel in PHONON_MODEL_REQUIRED) {
+            val bundledExists = assetExistsNonEmpty("$BUNDLED_MODEL_ASSET_ROOT/$rel")
+            val localFile = File(localPhononModelDir, rel)
+            val localExists = localFile.isFile && localFile.length() >= 128L
+            val exists = bundledExists || localExists
+            val sizeBytes = when {
+                bundledExists -> assetByteSize("$BUNDLED_MODEL_ASSET_ROOT/$rel")
+                localExists -> localFile.length()
+                else -> 0L
+            }
+            statuses.add(
+                ModelFileStatus(
+                    name = rel,
+                    exists = exists,
+                    sizeBytes = sizeBytes,
+                    required = true,
+                )
+            )
+        }
+
+        // Legacy fallback inspection (only used if user manually imported legacy root/ONNX weights)
         val stFile = getSafetensorsFile()
         val tokFile = getTokenizerFile()
         val cfgFile = getConfigFile()
@@ -98,49 +256,61 @@ class ModelRepository(private val context: Context) {
         val hasMainOnnx = onnxFiles.any { it.name.startsWith("flow_lm_main", true) }
         val hasDecOnnx = onnxFiles.any { it.name.startsWith("mimi_decoder", true) }
 
-        val statuses = mutableListOf(
-            ModelFileStatus(
-                name = stFile?.name ?: "model.safetensors",
-                exists = stFile != null,
-                sizeBytes = stFile?.length() ?: 0L,
-                required = !hasMainOnnx,
-            ),
-            ModelFileStatus(
-                name = "tokenizer.model",
-                exists = tokFile != null,
-                sizeBytes = tokFile?.length() ?: 0L,
-                required = true,
-            ),
-            ModelFileStatus(
-                name = "config.yaml",
-                exists = cfgFile != null,
-                sizeBytes = cfgFile?.length() ?: 0L,
-                required = false,
-            ),
-        )
-        for (ox in onnxFiles) {
-            statuses.add(
-                ModelFileStatus(
-                    name = "onnx/${ox.name}",
-                    exists = true,
-                    sizeBytes = ox.length(),
-                    required = false,
-                )
-            )
-        }
+        val totalBytes = statuses.sumOf { it.sizeBytes } +
+            (stFile?.length() ?: 0L) +
+            (tokFile?.length() ?: 0L) +
+            onnxFiles.sumOf { it.length() } +
+            getPromptFiles().sumOf { it.length() }
 
-        val totalBytes = statuses.sumOf { it.sizeBytes } + getPromptFiles().sumOf { it.length() }
         return ModelInventory(
-            safetensorsReady = stFile != null,
+            phononReady = phononReady,
+            phononRuntimeReady = runtimeReady,
+            phononSource = phononSource,
+            availablePhononVoices = availableVoices,
+            missingPhononAssets = missingPhononAssets(),
+            safetensorsReady = stFile != null || phononReady,
             onnxReady = hasMainOnnx && hasDecOnnx,
-            tokenizerReady = tokFile != null,
-            configReady = cfgFile != null,
+            tokenizerReady = tokFile != null || phononReady,
+            configReady = cfgFile != null || phononReady,
             files = statuses,
             totalSizeMb = totalBytes / (1024f * 1024f),
         )
     }
 
     suspend fun loadEngine(): TtsEngine? = withContext(Dispatchers.IO) {
+        // Priority 1: Bundled APK Phonon WASM checkpoint (zero copy, zero network)
+        if (hasBundledPhononModel()) {
+            val voices = discoverBundledVoices()
+            val voiceMap = voices.associate { it.id to it.urlPath }
+            val defaultVoice = voiceMap.keys.firstOrNull { it == PhononPocketTtsEngine.DEFAULT_VOICE_ID }
+                ?: voiceMap.keys.first()
+            return@withContext PhononPocketTtsEngine.load(
+                context = context,
+                modelBaseUrl = "../cilla-mini/phonon/model/",
+                voicesMap = voiceMap,
+                defaultVoiceId = defaultVoice,
+                localModelRootDir = null,
+                modelSizeMb = inspectInventory().totalSizeMb.takeIf { it > 1f } ?: 107f,
+            )
+        }
+
+        // Priority 2: Locally downloaded / imported Phonon WASM checkpoint (zero network after install)
+        if (hasLocalPhononModel()) {
+            val voices = discoverLocalPhononVoices()
+            val voiceMap = voices.associate { it.id to it.urlPath }
+            val defaultVoice = voiceMap.keys.firstOrNull { it == PhononPocketTtsEngine.DEFAULT_VOICE_ID }
+                ?: voiceMap.keys.first()
+            return@withContext PhononPocketTtsEngine.load(
+                context = context,
+                modelBaseUrl = "/local-model/",
+                voicesMap = voiceMap,
+                defaultVoiceId = defaultVoice,
+                localModelRootDir = localPhononModelDir,
+                modelSizeMb = inspectInventory().totalSizeMb.takeIf { it > 1f } ?: 107f,
+            )
+        }
+
+        // Priority 3: Legacy ONNX / Safetensors fallback if manually imported
         val tok = getTokenizerFile() ?: return@withContext null
         val cfg = getConfigFile()
         val inv = inspectInventory()
@@ -155,8 +325,9 @@ class ModelRepository(private val context: Context) {
     }
 
     /**
-     * Downloads `mehdi-hf/cilla-mini` files directly from Hugging Face Hub.
-     * Supports gated repository authentication via user's Hugging Face Read Token (`hf_...`).
+     * Downloads the Phonon checkpoint (JSON, safetensors, and voice safetensors files under phonon/model)
+     * from `mehdi-hf/cilla-mini` using the user's Hugging Face read token (`hf_...`).
+     * Never used during ordinary offline speech synthesis once bundled or installed.
      */
     suspend fun downloadFromHuggingFace(
         hfToken: String,
@@ -166,8 +337,7 @@ class ModelRepository(private val context: Context) {
             val repoId = "mehdi-hf/cilla-mini"
             val treeFiles = mutableListOf<Pair<String, Long>>()
 
-            // Query HuggingFace API tree to discover exact file paths & sizes
-            val apiUrl = "https://huggingface.co/api/models/$repoId/tree/main"
+            val apiUrl = "https://huggingface.co/api/models/$repoId/tree/main/phonon/model?recursive=true&expand=false"
             val treeReq = Request.Builder().url(apiUrl).apply {
                 if (hfToken.isNotBlank()) header("Authorization", "Bearer ${hfToken.trim()}")
             }.build()
@@ -175,7 +345,7 @@ class ModelRepository(private val context: Context) {
             client.newCall(treeReq).execute().use { resp ->
                 if (resp.code == 401 || resp.code == 403) {
                     return@withContext DownloadOutcome.GatedAuthRequired(
-                        "مخزن mehdi-hf/cilla-mini محدود (Gated) است. ابتدا در صفحه مدل روی Hugging Face قوانین CC BY-NC 4.0 را بپذیرید و یک توکن خواندن (hf_...) وارد کنید."
+                        "دسترسی به مخزن mehdi-hf/cilla-mini نیازمند پذیرش مجوز در Hugging Face و وارد کردن توکن خواندن (hf_...) است."
                     )
                 }
                 if (!resp.isSuccessful) {
@@ -187,38 +357,26 @@ class ModelRepository(private val context: Context) {
                     val path = item.optString("path")
                     val type = item.optString("type")
                     val size = item.optLong("size", 0L)
-                    if (type == "file" && (
-                            path.endsWith(".safetensors", true) ||
-                                path == "tokenizer.model" ||
-                                path == "config.yaml" ||
-                                path.endsWith(".onnx", true)
-                            )
+                    if (type == "file" &&
+                        path.startsWith("phonon/model/") &&
+                        (path.endsWith(".json", true) || path.endsWith(".safetensors", true))
                     ) {
                         treeFiles.add(path to size)
-                    } else if (type == "directory" && (path == "prompts" || path == "phonon")) {
-                        fetchSubdirFiles(repoId, path, hfToken, treeFiles)
                     }
                 }
             }
 
-            // Fallback canonical list if tree returned empty
             if (treeFiles.isEmpty()) {
-                treeFiles.add("config.yaml" to 0L)
-                treeFiles.add("tokenizer.model" to 0L)
-                treeFiles.add("model.safetensors" to 0L)
+                PHONON_MODEL_REQUIRED.forEach { rel ->
+                    treeFiles.add("phonon/model/$rel" to 0L)
+                }
             }
 
-            // Prefer root model.safetensors; avoid downloading duplicate phonon safetensors if root exists
-            val hasRootSafetensors = treeFiles.any { it.first == "model.safetensors" }
-            val filtered = treeFiles.filter { (path, _) ->
-                if (hasRootSafetensors && path.startsWith("phonon/")) false else true
-            }
-
-            for ((idx, pair) in filtered.withIndex()) {
+            for ((idx, pair) in treeFiles.withIndex()) {
                 val (remotePath, expectedSize) = pair
                 val targetFile = resolveTargetFile(remotePath)
                 if (targetFile.exists() && expectedSize > 0L && targetFile.length() == expectedSize) {
-                    onProgress(DownloadProgress(remotePath, idx + 1, filtered.size, expectedSize, expectedSize))
+                    onProgress(DownloadProgress(remotePath, idx + 1, treeFiles.size, expectedSize, expectedSize))
                     continue
                 }
 
@@ -230,7 +388,7 @@ class ModelRepository(private val context: Context) {
                 client.newCall(dlReq).execute().use { dlResp ->
                     if (dlResp.code == 401 || dlResp.code == 403) {
                         return@withContext DownloadOutcome.GatedAuthRequired(
-                            "دسترسی به فایل $remotePath نیازمند پذیرش مجوز در Hugging Face و وارد کردن توکن معتبر است."
+                            "دسترسی به فایل $remotePath نیازمند پذیرش مجوز و توکن معتبر است."
                         )
                     }
                     if (!dlResp.isSuccessful) {
@@ -250,13 +408,16 @@ class ModelRepository(private val context: Context) {
                                 if (read <= 0) break
                                 output.write(buf, 0, read)
                                 readTotal += read
-                                onProgress(DownloadProgress(remotePath, idx + 1, filtered.size, readTotal, total))
+                                onProgress(DownloadProgress(remotePath, idx + 1, treeFiles.size, readTotal, total))
                             }
                             output.flush()
                         }
                     }
                     if (targetFile.exists()) targetFile.delete()
-                    partFile.renameTo(targetFile)
+                    if (!partFile.renameTo(targetFile)) {
+                        partFile.copyTo(targetFile, overwrite = true)
+                        partFile.delete()
+                    }
                 }
             }
 
@@ -266,83 +427,79 @@ class ModelRepository(private val context: Context) {
         }
     }
 
-    private fun fetchSubdirFiles(
-        repoId: String,
-        subdir: String,
-        hfToken: String,
-        out: MutableList<Pair<String, Long>>,
-    ) {
-        val req = Request.Builder()
-            .url("https://huggingface.co/api/models/$repoId/tree/main/$subdir")
-            .apply { if (hfToken.isNotBlank()) header("Authorization", "Bearer ${hfToken.trim()}") }
-            .build()
-        runCatching {
-            client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) return
-                val arr = JSONArray(resp.body?.string() ?: "[]")
-                for (i in 0 until arr.length()) {
-                    val obj = arr.getJSONObject(i)
-                    val path = obj.optString("path")
-                    val type = obj.optString("type")
-                    val size = obj.optLong("size", 0L)
-                    if (type == "file" && (
-                            path.endsWith(".wav", true) ||
-                                path.endsWith(".safetensors", true)
-                            )
-                    ) {
-                        out.add(path to size)
-                    } else if (type == "directory" && path == "phonon/model") {
-                        fetchSubdirFiles(repoId, path, hfToken, out)
-                    }
-                }
-            }
-        }
-    }
-
     private fun resolveTargetFile(remotePath: String): File {
-        val fileName = remotePath.substringAfterLast('/')
         return when {
-            remotePath.startsWith("prompts/") -> File(promptsDir, fileName)
-            fileName.endsWith(".onnx", true) -> File(onnxDir, fileName)
-            else -> File(modelDir, fileName)
+            remotePath.startsWith("phonon/model/") -> {
+                val rel = remotePath.removePrefix("phonon/model/")
+                File(localPhononModelDir, rel)
+            }
+            remotePath.startsWith("prompts/") -> File(promptsDir, remotePath.substringAfterLast('/'))
+            remotePath.endsWith(".onnx", true) -> File(onnxDir, remotePath.substringAfterLast('/'))
+            else -> File(modelDir, remotePath.substringAfterLast('/'))
         }
     }
 
     /**
-     * Zero-permission Storage Access Framework importer for local `.safetensors`, `tokenizer.model`,
-     * `config.yaml`, and `.onnx` files.
+     * Zero-permission Storage Access Framework importer supporting Phonon model files
+     * (`config.json`, `tokenizer.json`, `model.safetensors`, and voice safetensors) as well as
+     * legacy `.model` / `.yaml` / `.onnx` files.
      */
     suspend fun importLocalFiles(uris: List<Uri>): List<String> = withContext(Dispatchers.IO) {
         val imported = mutableListOf<String>()
         for (uri in uris) {
             val fileName = queryDisplayName(uri) ?: continue
-            val dest = when {
-                fileName.endsWith(".onnx", true) -> File(onnxDir, fileName)
-                fileName.endsWith(".wav", true) -> File(promptsDir, fileName)
-                fileName.endsWith(".safetensors", true) -> {
-                    // Rename arbitrary safetensors checkpoint to model.safetensors if none exists, or keep name
-                    if (fileName.contains("voice", true)) File(promptsDir, fileName)
-                    else File(modelDir, "model.safetensors")
+            val lower = fileName.lowercase()
+            val temp = File(modelDir, "${fileName}.import-part")
+            temp.parentFile?.mkdirs()
+            val copied = context.contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(temp).use { output ->
+                    input.copyTo(output, bufferSize = 32 * 1024)
                 }
-                fileName.endsWith(".model", true) -> File(modelDir, "tokenizer.model")
-                fileName.endsWith(".yaml", true) || fileName.endsWith(".yml", true) -> File(modelDir, "config.yaml")
+                true
+            } ?: false
+            if (!copied) {
+                temp.delete()
+                continue
+            }
+
+            val dest = when {
+                lower == "config.json" -> File(localPhononModelDir, "config.json")
+                lower == "tokenizer.json" -> File(localPhononModelDir, "tokenizer.json")
+                lower == "model.safetensors" -> File(localPhononModelDir, "model.safetensors")
+                lower.endsWith(".safetensors") -> {
+                    // Voice state safetensors are small (< 15MB) or named parisa/voice*; weights are > 15MB
+                    val isVoiceAsset = lower.contains("parisa") ||
+                        lower.contains("voice") ||
+                        temp.length() < 15L * 1024L * 1024L
+                    if (isVoiceAsset) {
+                        File(localPhononVoicesDir, fileName)
+                    } else {
+                        File(localPhononModelDir, "model.safetensors")
+                    }
+                }
+                lower.endsWith(".onnx") -> File(onnxDir, fileName)
+                lower.endsWith(".wav") -> File(promptsDir, fileName)
+                lower.endsWith(".model") -> File(modelDir, "tokenizer.model")
+                lower.endsWith(".yaml") || lower.endsWith(".yml") -> File(modelDir, "config.yaml")
                 else -> File(modelDir, fileName)
             }
             dest.parentFile?.mkdirs()
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(dest).use { output ->
-                    input.copyTo(output, bufferSize = 32 * 1024)
-                }
-                imported.add(dest.name)
+            if (dest.exists()) dest.delete()
+            if (!temp.renameTo(dest)) {
+                temp.copyTo(dest, overwrite = true)
+                temp.delete()
             }
+            imported.add(dest.name)
         }
         imported
     }
 
-    suspend fun clearAllModels() = withContext(Dispatchers.IO) {
+    suspend fun clearAllModels(): Unit = withContext(Dispatchers.IO) {
         modelDir.listFiles()?.forEach { it.deleteRecursively() }
+        localPhononVoicesDir.mkdirs()
         onnxDir.mkdirs()
         promptsDir.mkdirs()
+        Unit
     }
 
     private fun queryDisplayName(uri: Uri): String? {
@@ -353,5 +510,43 @@ class ModelRepository(private val context: Context) {
             }
         }
         return uri.lastPathSegment?.substringAfterLast('/')
+    }
+
+    companion object {
+        const val BUNDLED_MODEL_ASSET_ROOT = "cilla-mini/phonon/model"
+
+        val PHONON_RUNTIME_REQUIRED = listOf(
+            "phonon-runtime/index.js",
+            "phonon-runtime/worker.js",
+            "phonon-runtime/wasm/phonon_tts_bg.wasm",
+        )
+
+        val PHONON_MODEL_REQUIRED = listOf(
+            "config.json",
+            "tokenizer.json",
+            "model.safetensors",
+            "voices/parisa.safetensors",
+        )
+
+        fun displayLabelForVoiceId(id: String): String = when (id.lowercase()) {
+            "parisa" -> "پریسا"
+            "voice1" -> "صدای ۱"
+            "voice2" -> "صدای ۲"
+            else -> id.replace('_', ' ').replace('-', ' ')
+        }
+
+        fun inferGenderForVoiceId(id: String): NarratorGender? {
+            val lower = id.lowercase()
+            return when {
+                lower == "parisa" || lower == "voice1" ||
+                    lower.contains("female") || lower.contains("woman") ||
+                    lower.contains("zan") || lower.contains("sara") -> NarratorGender.FEMALE
+                lower == "voice2" ||
+                    lower.contains("male") || lower.contains("man") ||
+                    lower.contains("mard") || lower.contains("arash") ||
+                    lower.contains("ali") -> NarratorGender.MALE
+                else -> null
+            }
+        }
     }
 }

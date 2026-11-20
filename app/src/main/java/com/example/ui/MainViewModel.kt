@@ -3,15 +3,16 @@ package com.example.ui
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.ui.text.font.FontFamily
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.audio.AudioPlayer
 import com.example.audio.VoicePromptRecorder
 import com.example.audio.WavAudioUtils
-import androidx.compose.ui.text.font.FontFamily
 import com.example.data.AppFontWeight
 import com.example.data.AppPreferences
+import com.example.data.BundledVoiceAsset
 import com.example.data.ClipAndVoiceRepository
 import com.example.data.ClipRecord
 import com.example.data.DownloadOutcome
@@ -23,9 +24,9 @@ import com.example.data.ModelRepository
 import com.example.data.NarratorGender
 import com.example.data.UserSettings
 import com.example.data.VoicePromptItem
-import com.example.data.VoiceSource
 import com.example.tts.EngineDiagnostics
 import com.example.tts.PersianTextNormalizer
+import com.example.tts.PhononPocketTtsEngine
 import com.example.tts.TtsEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,6 +61,21 @@ sealed interface DownloadUiState {
     data class Error(val message: String) : DownloadUiState
     data object Completed : DownloadUiState
 }
+
+/**
+ * Synchronized view of real, verified voices exposed by the active model backend.
+ * Never simulates voices or claims male/female voices that lack actual voice assets.
+ */
+data class VoiceAvailabilityState(
+    val activeVoiceId: String = PhononPocketTtsEngine.DEFAULT_VOICE_ID,
+    val activeVoiceLabel: String = "پریسا",
+    val activeGender: NarratorGender? = NarratorGender.FEMALE,
+    val isFemaleAvailable: Boolean = true,
+    val isMaleAvailable: Boolean = false,
+    val availablePhononVoices: List<BundledVoiceAsset> = emptyList(),
+    val isUsingCustomRecordedVoice: Boolean = false,
+    val isPhononBackend: Boolean = true,
+)
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -112,6 +128,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _customFonts = MutableStateFlow<Map<String, FontFamily>>(emptyMap())
     val customFonts: StateFlow<Map<String, FontFamily>> = _customFonts.asStateFlow()
 
+    /**
+     * Authoritative voice availability computed directly from verified model assets.
+     */
+    val voiceAvailability: StateFlow<VoiceAvailabilityState> = combine(
+        _inventory,
+        _voices,
+        settings,
+    ) { inv, userVoices, cfg ->
+        computeVoiceAvailability(inv, userVoices, cfg)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = VoiceAvailabilityState(),
+    )
+
     init {
         refreshAll()
     }
@@ -148,7 +179,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }.onFailure { err ->
             activeEngine = null
             _modelState.value = ModelEngineState.Error(
-                err.localizedMessage ?: "خطا در بارگذاری وزن‌های مدل",
+                err.localizedMessage ?: "خطا در آماده‌سازی موتور گفتار",
                 inv,
             )
         }
@@ -192,48 +223,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _synthesisState.value = SynthesisUiState.Synthesizing(1, 1, 0)
             runCatching {
-                val customVoice = _voices.value.firstOrNull { it.id == cfg.activeVoiceId }
-                val selectedGender = cfg.narratorGender
+                val availability = computeVoiceAvailability(_inventory.value, _voices.value, cfg)
                 val resolvedVoiceLabel: String
 
-                val voiceEmbedding = if (customVoice != null) {
-                    resolvedVoiceLabel = customVoice.label
-                    val audio = if (customVoice.isSafetensorsCache) null else {
-                        withContext(Dispatchers.IO) {
-                            WavAudioUtils.readWavAs24kMono(customVoice.file)
-                        }
-                    }
-                    val stateFile = if (customVoice.isSafetensorsCache) customVoice.file else null
-                    engine.encodeVoicePrompt(customVoice.id, customVoice.label, audio, stateFile)
+                val voiceEmbedding = if (engine is PhononPocketTtsEngine) {
+                    val chosenAsset = availability.availablePhononVoices.firstOrNull {
+                        it.id == availability.activeVoiceId
+                    } ?: availability.availablePhononVoices.firstOrNull()
+
+                    val voiceId = chosenAsset?.id ?: engine.defaultVoiceId
+                    resolvedVoiceLabel = chosenAsset?.label ?: ModelRepository.displayLabelForVoiceId(voiceId)
+                    engine.encodeVoicePrompt(
+                        id = voiceId,
+                        label = resolvedVoiceLabel,
+                        audio24k = null,
+                        stateFile = chosenAsset?.localFile,
+                    )
                 } else {
-                    resolvedVoiceLabel = selectedGender.fullLabel
-                    val matchingPrompt = findGenderMatchingModelPrompt(selectedGender)
-                    if (matchingPrompt != null) {
-                        val audio = if (matchingPrompt.isSafetensorsCache) null else {
-                            withContext(Dispatchers.IO) {
-                                WavAudioUtils.readWavAs24kMono(matchingPrompt.file)
-                            }
+                    // Legacy non-Phonon engine: use real recorded/imported voice prompt if present; never simulate.
+                    val customVoice = _voices.value.firstOrNull { it.id == cfg.activeVoiceId }
+                        ?: _voices.value.firstOrNull()
+                    if (customVoice != null) {
+                        resolvedVoiceLabel = customVoice.label
+                        val audio = if (customVoice.isSafetensorsCache) null else {
+                            withContext(Dispatchers.IO) { WavAudioUtils.readWavAs24kMono(customVoice.file) }
                         }
-                        val stateFile = if (matchingPrompt.isSafetensorsCache) matchingPrompt.file else null
-                        engine.encodeVoicePrompt(
-                            id = matchingPrompt.id,
-                            label = resolvedVoiceLabel,
-                            audio24k = audio,
-                            stateFile = stateFile,
-                        ).copy(pitchScale = selectedGender.pitchScale)
+                        val stateFile = if (customVoice.isSafetensorsCache) customVoice.file else null
+                        engine.encodeVoicePrompt(customVoice.id, customVoice.label, audio, stateFile)
                     } else {
-                        val refAudio = withContext(Dispatchers.Default) {
-                            WavAudioUtils.generateVocalReferencePrompt(
-                                baseFreqHz = selectedGender.baseFreqHz,
-                                isFemale = selectedGender == NarratorGender.FEMALE,
-                            )
-                        }
+                        resolvedVoiceLabel = availability.activeVoiceLabel
                         engine.encodeVoicePrompt(
-                            id = selectedGender.id,
+                            id = availability.activeVoiceId,
                             label = resolvedVoiceLabel,
-                            audio24k = refAudio,
+                            audio24k = null,
                             stateFile = null,
-                        ).copy(pitchScale = selectedGender.pitchScale)
+                        )
                     }
                 }
 
@@ -263,7 +287,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 audioPlayer.play(savedClip.id, res.pcmSamples24k, res.sampleRate)
             }.onFailure { err ->
                 _synthesisState.value = SynthesisUiState.Error(
-                    err.localizedMessage ?: "خطا در اجرای استنتاج عصبی مدل"
+                    err.localizedMessage ?: "خطا در تولید گفتار"
                 )
             }
         }
@@ -306,7 +330,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val saved = clipVoiceRepo.saveRecordedVoice(label, captured)
                 prefs.setActiveVoiceId(saved.id)
                 _voices.value = clipVoiceRepo.listVoicePrompts()
-                _statusBanner.value = "نمونه صدای «${saved.label}» ذخیره و فعال شد."
+                _statusBanner.value = "نمونه صدای «${saved.label}» ذخیره شد."
             }
         }
     }
@@ -329,24 +353,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectVoice(voiceId: String) {
-        viewModelScope.launch { prefs.setActiveVoiceId(voiceId) }
+        viewModelScope.launch {
+            val inv = _inventory.value
+            val matchingPhonon = inv.availablePhononVoices.firstOrNull { it.id == voiceId }
+            if (matchingPhonon != null) {
+                matchingPhonon.gender?.let { prefs.setNarratorGender(it) }
+                prefs.setActiveVoiceId(matchingPhonon.id)
+            } else {
+                prefs.setActiveVoiceId(voiceId)
+            }
+        }
     }
 
     fun selectNarratorGender(gender: NarratorGender) {
-        viewModelScope.launch { prefs.setNarratorGender(gender) }
-    }
-
-    private fun findGenderMatchingModelPrompt(gender: NarratorGender): VoicePromptItem? {
-        val modelPrompts = _voices.value.filter { it.source == VoiceSource.MODEL_PROMPT }
-        if (modelPrompts.isEmpty()) return null
-        val keywords = if (gender == NarratorGender.FEMALE) {
-            listOf("female", "woman", "girl", "sara", "zan", "f_", "_f")
-        } else {
-            listOf("male", "man", "boy", "arash", "ali", "mard", "m_", "_m")
-        }
-        return modelPrompts.firstOrNull { item ->
-            val lower = item.file.name.lowercase()
-            keywords.any { kw -> lower.contains(kw) }
+        viewModelScope.launch {
+            val inv = _inventory.value
+            val phononVoices = inv.availablePhononVoices
+            if (inv.phononReady || phononVoices.isNotEmpty() || !inv.canRunOffline) {
+                val matched = phononVoices.firstOrNull { it.gender == gender }
+                if (matched == null) {
+                    if (gender == NarratorGender.MALE) {
+                        _statusBanner.value = "صدای مرد در فایل‌های مدل موجود نیست."
+                    }
+                    return@launch
+                }
+                prefs.setNarratorGender(gender)
+                prefs.setActiveVoiceId(matched.id)
+            } else {
+                prefs.setNarratorGender(gender)
+            }
         }
     }
 
@@ -354,7 +389,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             clipVoiceRepo.deleteVoice(voice)
             if (settings.value.activeVoiceId == voice.id) {
-                prefs.setActiveVoiceId(settings.value.narratorGender.id)
+                prefs.setActiveVoiceId(PhononPocketTtsEngine.DEFAULT_VOICE_ID)
             }
             _voices.value = clipVoiceRepo.listVoicePrompts()
         }
@@ -447,7 +482,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _downloadState.value = DownloadUiState.Idle
             reloadInventoryAndEngine()
             _voices.value = clipVoiceRepo.listVoicePrompts()
-            _statusBanner.value = "فایل‌های مدل پاک شدند."
+            _statusBanner.value = "فایل‌های محلی مدل پاک شدند."
         }
     }
 
@@ -544,5 +579,65 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         audioPlayer.stop()
         voiceRecorder.stopRecording()
         activeEngine?.close()
+    }
+
+    companion object {
+        fun computeVoiceAvailability(
+            inventory: ModelInventory,
+            userVoices: List<VoicePromptItem>,
+            settings: UserSettings,
+        ): VoiceAvailabilityState {
+            val phononVoices = inventory.availablePhononVoices
+            val isPhonon = inventory.phononReady || !inventory.canRunOffline || phononVoices.isNotEmpty()
+
+            if (isPhonon) {
+                val hasFemale = phononVoices.any { it.gender == NarratorGender.FEMALE }
+                val hasMale = phononVoices.any { it.gender == NarratorGender.MALE }
+                val selected = phononVoices.firstOrNull { it.id == settings.activeVoiceId }
+                    ?: phononVoices.firstOrNull { it.gender == settings.narratorGender }
+                    ?: phononVoices.firstOrNull { it.id == PhononPocketTtsEngine.DEFAULT_VOICE_ID }
+                    ?: phononVoices.firstOrNull()
+
+                return if (selected != null) {
+                    VoiceAvailabilityState(
+                        activeVoiceId = selected.id,
+                        activeVoiceLabel = selected.label,
+                        activeGender = selected.gender,
+                        isFemaleAvailable = hasFemale,
+                        isMaleAvailable = hasMale,
+                        availablePhononVoices = phononVoices,
+                        isUsingCustomRecordedVoice = false,
+                        isPhononBackend = true,
+                    )
+                } else {
+                    // Model weights not yet installed: honestly reflect Cilla Mini default (Parisa female only)
+                    VoiceAvailabilityState(
+                        activeVoiceId = PhononPocketTtsEngine.DEFAULT_VOICE_ID,
+                        activeVoiceLabel = "پریسا",
+                        activeGender = NarratorGender.FEMALE,
+                        isFemaleAvailable = true,
+                        isMaleAvailable = false,
+                        availablePhononVoices = emptyList(),
+                        isUsingCustomRecordedVoice = false,
+                        isPhononBackend = true,
+                    )
+                }
+            }
+
+            // Legacy non-Phonon backend fallback (only when user manually loaded ONNX/legacy weights)
+            val customVoice = userVoices.firstOrNull { it.id == settings.activeVoiceId }
+            return VoiceAvailabilityState(
+                activeVoiceId = customVoice?.id ?: settings.narratorGender.id,
+                activeVoiceLabel = customVoice?.label ?: settings.narratorGender.persianName,
+                activeGender = if (customVoice == null) settings.narratorGender else null,
+                isFemaleAvailable = true,
+                isMaleAvailable = userVoices.any {
+                    ModelRepository.inferGenderForVoiceId(it.file.nameWithoutExtension) == NarratorGender.MALE
+                },
+                availablePhononVoices = emptyList(),
+                isUsingCustomRecordedVoice = customVoice != null,
+                isPhononBackend = false,
+            )
+        }
     }
 }

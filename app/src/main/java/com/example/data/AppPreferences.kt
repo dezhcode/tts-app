@@ -73,28 +73,33 @@ enum class NarratorGender(
     val baseFreqHz: Float,
 ) {
     FEMALE(
-        id = "builtin_female",
-        persianName = "سارا",
+        id = "parisa",
+        persianName = "پریسا",
         roleLabel = "زن",
-        timbreNote = "سارا · لطیف و روشن",
-        pitchScale = 1.18f,
+        timbreNote = "پریسا",
+        pitchScale = 1.0f,
         baseFreqHz = 215f,
     ),
     MALE(
-        id = "builtin_male",
-        persianName = "آرش",
+        id = "voice2",
+        persianName = "صدای مرد",
         roleLabel = "مرد",
-        timbreNote = "آرش · بم و رسا",
-        pitchScale = 0.78f,
+        timbreNote = "مرد",
+        pitchScale = 1.0f,
         baseFreqHz = 115f,
     );
 
     val fullLabel: String
-        get() = "صدای $roleLabel ($persianName)"
+        get() = persianName
 
     companion object {
         fun fromStored(value: String?): NarratorGender =
-            entries.firstOrNull { it.name.equals(value, ignoreCase = true) || it.id == value } ?: FEMALE
+            entries.firstOrNull {
+                it.name.equals(value, ignoreCase = true) ||
+                    it.id.equals(value, ignoreCase = true) ||
+                    (value == "builtin_male" && it == MALE) ||
+                    (value == "builtin_female" && it == FEMALE)
+            } ?: FEMALE
     }
 }
 

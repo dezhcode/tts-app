@@ -76,6 +76,7 @@ import com.example.data.UserSettings
 import com.example.data.VoicePromptItem
 import com.example.ui.ModelEngineState
 import com.example.ui.SynthesisUiState
+import com.example.ui.VoiceAvailabilityState
 import com.example.ui.components.AnimatedPlaybackButton
 import com.example.ui.components.CillaHairline
 import com.example.ui.components.CompactGenderSelector
@@ -103,6 +104,7 @@ fun StudioScreen(
     synthesisState: SynthesisUiState,
     voices: List<VoicePromptItem>,
     activeCustomVoice: VoicePromptItem?,
+    voiceAvailability: VoiceAvailabilityState = VoiceAvailabilityState(),
     isPlaying: Boolean,
     playingClipId: String?,
     playProgress: Float,
@@ -136,7 +138,7 @@ fun StudioScreen(
     }
 
     val isSynthesizing = synthesisState is SynthesisUiState.Synthesizing
-    val activeVoiceDisplayName = activeCustomVoice?.label ?: settings.narratorGender.persianName
+    val activeVoiceDisplayName = voiceAvailability.activeVoiceLabel
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -417,14 +419,16 @@ fun StudioScreen(
             ) {
                 CompactVoiceSelector(
                     voiceName = activeVoiceDisplayName,
-                    isCustomVoiceActive = activeCustomVoice != null,
+                    isCustomVoiceActive = voiceAvailability.isUsingCustomRecordedVoice,
                     onClick = { showVoicePicker = true },
                     modifier = Modifier.weight(1f),
                 )
 
                 CompactGenderSelector(
-                    selectedGender = settings.narratorGender,
-                    isCustomVoiceActive = activeCustomVoice != null,
+                    selectedGender = voiceAvailability.activeGender ?: settings.narratorGender,
+                    isCustomVoiceActive = voiceAvailability.activeGender == null,
+                    femaleEnabled = voiceAvailability.isFemaleAvailable,
+                    maleEnabled = voiceAvailability.isMaleAvailable,
                     onSelectGender = onSelectNarratorGender,
                 )
             }
@@ -597,14 +601,13 @@ fun StudioScreen(
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
             CompactVoicePickerSheet(
-                selectedGender = settings.narratorGender,
-                activeCustomVoiceId = activeCustomVoice?.id,
+                voiceAvailability = voiceAvailability,
                 voices = voices,
                 onSelectGender = { gender ->
                     onSelectNarratorGender(gender)
                     showVoicePicker = false
                 },
-                onSelectCustomVoice = { id ->
+                onSelectVoice = { id ->
                     onSelectVoice(id)
                     showVoicePicker = false
                 },
@@ -619,11 +622,10 @@ fun StudioScreen(
 
 @Composable
 private fun CompactVoicePickerSheet(
-    selectedGender: NarratorGender,
-    activeCustomVoiceId: String?,
+    voiceAvailability: VoiceAvailabilityState,
     voices: List<VoicePromptItem>,
     onSelectGender: (NarratorGender) -> Unit,
-    onSelectCustomVoice: (String) -> Unit,
+    onSelectVoice: (String) -> Unit,
     onManageVoices: () -> Unit,
 ) {
     Column(
@@ -643,48 +645,76 @@ private fun CompactVoicePickerSheet(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            TextButton(
-                onClick = onManageVoices,
-                modifier = Modifier.minimumInteractiveComponentSize(),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp),
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = "صدای جدید",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+            if (!voiceAvailability.isPhononBackend) {
+                TextButton(
+                    onClick = onManageVoices,
+                    modifier = Modifier.minimumInteractiveComponentSize(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Add,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "صدای جدید",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         }
 
         CillaHairline()
 
-        // Built-in voices (Sara & Arash)
-        NarratorGender.entries.forEach { gender ->
-            val selected = activeCustomVoiceId == null && selectedGender == gender
+        if (voiceAvailability.availablePhononVoices.isNotEmpty()) {
+            voiceAvailability.availablePhononVoices.forEach { asset ->
+                val selected = voiceAvailability.activeVoiceId == asset.id
+                VoicePickerRow(
+                    title = asset.label,
+                    subtitle = asset.gender?.roleLabel,
+                    selected = selected,
+                    enabled = true,
+                    onClick = { onSelectVoice(asset.id) },
+                )
+            }
+            if (!voiceAvailability.isMaleAvailable) {
+                VoicePickerRow(
+                    title = "صدای مرد",
+                    subtitle = "ناموجود در مدل",
+                    selected = false,
+                    enabled = false,
+                    onClick = {},
+                )
+            }
+        } else {
             VoicePickerRow(
-                title = gender.persianName,
-                subtitle = gender.roleLabel,
-                selected = selected,
-                onClick = { onSelectGender(gender) },
+                title = NarratorGender.FEMALE.persianName,
+                subtitle = NarratorGender.FEMALE.roleLabel,
+                selected = voiceAvailability.activeGender == NarratorGender.FEMALE,
+                enabled = voiceAvailability.isFemaleAvailable,
+                onClick = { onSelectGender(NarratorGender.FEMALE) },
+            )
+            VoicePickerRow(
+                title = NarratorGender.MALE.persianName,
+                subtitle = if (voiceAvailability.isMaleAvailable) NarratorGender.MALE.roleLabel else "ناموجود در مدل",
+                selected = voiceAvailability.activeGender == NarratorGender.MALE,
+                enabled = voiceAvailability.isMaleAvailable,
+                onClick = { onSelectGender(NarratorGender.MALE) },
             )
         }
 
-        // Custom recorded / imported voices
-        if (voices.isNotEmpty()) {
+        if (!voiceAvailability.isPhononBackend && voices.isNotEmpty()) {
             CillaHairline(modifier = Modifier.padding(vertical = 4.dp))
             voices.forEach { voice ->
-                val selected = activeCustomVoiceId == voice.id
+                val selected = voiceAvailability.activeVoiceId == voice.id
                 VoicePickerRow(
                     title = voice.label,
                     subtitle = if (voice.isSafetensorsCache) null else String.format(Locale.US, "%.1fs", voice.durationSec),
                     selected = selected,
-                    onClick = { onSelectCustomVoice(voice.id) },
+                    enabled = true,
+                    onClick = { onSelectVoice(voice.id) },
                 )
             }
         }
@@ -698,6 +728,7 @@ private fun VoicePickerRow(
     title: String,
     subtitle: String?,
     selected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     Row(
@@ -707,7 +738,7 @@ private fun VoicePickerRow(
             .background(
                 if (selected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent
             )
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .minimumInteractiveComponentSize()
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -729,13 +760,21 @@ private fun VoicePickerRow(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                },
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (enabled) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    },
                 )
             }
         }

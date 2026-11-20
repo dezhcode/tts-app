@@ -1,0 +1,93 @@
+name: Build Avina Offline APK with bundled Cilla Mini
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - feature/bundled-cilla-mini
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configure Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          SDKMANAGER=$(find "$ANDROID_SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          test -n "$SDKMANAGER" || { echo "::error::Android SDK command-line tools not installed"; exit 1; }
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Android SDK 36
+        run: |
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Download gated Cilla Mini model into APK assets
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          test -n "$HF_TOKEN" || { echo "::error::Missing HF_TOKEN secret"; exit 1; }
+          python3 -m py_compile .github/scripts/bundle_cilla.py
+          python3 .github/scripts/bundle_cilla.py
+          for file in config.json tokenizer.json model.safetensors voices/parisa.safetensors; do
+            test -s "app/src/main/assets/cilla-mini/phonon/model/$file" || { echo "::error::Missing bundled model file: $file"; exit 1; }
+          done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Bundle Phonon WASM runtime offline
+        run: |
+          rm -rf app/src/main/assets/phonon-runtime
+          mkdir -p app/src/main/assets/phonon-runtime
+          npm pack phonon-tts@latest --pack-destination /tmp
+          tar -xzf /tmp/phonon-tts-*.tgz -C app/src/main/assets/phonon-runtime --strip-components=1
+          test -s app/src/main/assets/phonon-runtime/index.js
+          test -s app/src/main/assets/phonon-runtime/worker.js
+          test -s app/src/main/assets/phonon-runtime/wasm/phonon_tts_bg.wasm
+
+      - name: Generate debug signing key if absent
+        run: |
+          if [ ! -f debug.keystore ]; then
+            keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      - name: Build debug-signed offline APK
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify signature and prepare APK
+        run: |
+          set -euo pipefail
+          APK=$(find app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' -type f -print -quit)
+          test -n "$APK" || { echo "::error::Debug APK not found"; exit 1; }
+          APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner -type f | sort -V | tail -1)
+          test -n "$APKSIGNER" || { echo "::error::apksigner not found"; exit 1; }
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          cp "$APK" Avina-0.1.0.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Avina-0.1.0
+          path: Avina-0.1.0.apk
+          if-no-files-found: error

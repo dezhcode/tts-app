@@ -57,6 +57,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.example.data.ModelInventory
+import com.example.data.PhononModelSource
 import com.example.data.UserSettings
 import com.example.ui.DownloadUiState
 import com.example.ui.ModelEngineState
@@ -162,6 +163,9 @@ fun ModelSetupSheetContent(
             }
         }
 
+        val isBundledOffline = inventory.phononSource == PhononModelSource.BUNDLED_APK
+
+        if (!isBundledOffline) {
         // Clean Segmented Switcher: Hugging Face vs Local Files
         Row(
             modifier = Modifier
@@ -342,6 +346,8 @@ fun ModelSetupSheetContent(
             }
         }
 
+        } // end !isBundledOffline
+
         if (modelState is ModelEngineState.Ready) {
             Surface(
                 shape = RoundedCornerShape(CillaRadius.md),
@@ -349,7 +355,11 @@ fun ModelSetupSheetContent(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    text = "مدل آماده است",
+                    text = if (isBundledOffline) {
+                        "مدل آفلاین آماده است (بسته‌بندی‌شده در برنامه)"
+                    } else {
+                        "مدل آفلاین آماده است"
+                    },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -371,7 +381,7 @@ fun ModelSetupSheetContent(
             )
         }
 
-        if (inventory.totalSizeMb > 0f) {
+        if (!isBundledOffline && inventory.totalSizeMb > 0f) {
             TextButton(
                 onClick = onClearModels,
                 modifier = Modifier

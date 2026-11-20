@@ -460,6 +460,8 @@ fun CompactGenderSelector(
     isCustomVoiceActive: Boolean,
     onSelectGender: (NarratorGender) -> Unit,
     modifier: Modifier = Modifier,
+    femaleEnabled: Boolean = true,
+    maleEnabled: Boolean = true,
 ) {
     Surface(
         shape = RoundedCornerShape(CillaRadius.md),
@@ -478,7 +480,8 @@ fun CompactGenderSelector(
         ) {
             NarratorGender.entries.forEach { gender ->
                 val isFemale = gender == NarratorGender.FEMALE
-                val isSelected = !isCustomVoiceActive && selectedGender == gender
+                val isEnabled = if (isFemale) femaleEnabled else maleEnabled
+                val isSelected = isEnabled && !isCustomVoiceActive && selectedGender == gender
 
                 val segBg by animateColorAsState(
                     targetValue = if (isSelected) {
@@ -490,10 +493,10 @@ fun CompactGenderSelector(
                     label = "gender_seg_bg",
                 )
                 val segFg by animateColorAsState(
-                    targetValue = if (isSelected) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                    targetValue = when {
+                        isSelected -> MaterialTheme.colorScheme.onPrimary
+                        isEnabled -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.36f)
                     },
                     animationSpec = CillaMotion.quickTween(),
                     label = "gender_seg_fg",
@@ -507,6 +510,7 @@ fun CompactGenderSelector(
                         .clip(RoundedCornerShape(CillaRadius.sm))
                         .background(segBg)
                         .clickable(
+                            enabled = isEnabled,
                             interactionSource = interactionSource,
                             indication = ripple(bounded = true),
                             role = Role.RadioButton,
@@ -514,7 +518,11 @@ fun CompactGenderSelector(
                         )
                         .semantics {
                             selected = isSelected
-                            contentDescription = gender.roleLabel
+                            contentDescription = if (isEnabled) {
+                                gender.roleLabel
+                            } else {
+                                "${gender.roleLabel} (ناموجود)"
+                            }
                         }
                         .testTag(if (isFemale) "select_female_narrator" else "select_male_narrator"),
                     contentAlignment = Alignment.Center,

@@ -41,10 +41,12 @@ googleServices = "4.5.0"
 credentials = "1.5.0"
 googleid = "1.1.1"
 onnxruntimeAndroid = "1.23.2"
+webkit = "1.12.1"
 
 
 [libraries]
 onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntimeAndroid" }
+androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

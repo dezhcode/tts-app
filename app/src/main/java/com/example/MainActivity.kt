@@ -128,6 +128,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
     val clips by viewModel.clips.collectAsStateWithLifecycle()
     val statusBanner by viewModel.statusBanner.collectAsStateWithLifecycle()
     val customFonts by viewModel.customFonts.collectAsStateWithLifecycle()
+    val voiceAvailability by viewModel.voiceAvailability.collectAsStateWithLifecycle()
 
     val isPlaying by viewModel.audioPlayer.isPlaying.collectAsStateWithLifecycle()
     val playingClipId by viewModel.audioPlayer.playingClipId.collectAsStateWithLifecycle()
@@ -346,6 +347,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                                 synthesisState = synthesisState,
                                 voices = voices,
                                 activeCustomVoice = activeCustomVoice,
+                                voiceAvailability = voiceAvailability,
                                 isPlaying = isPlaying,
                                 playingClipId = playingClipId,
                                 playProgress = playProgress,

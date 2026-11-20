@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body>
+<script type="module">
+import { PhononTTS } from '../phonon-runtime/index.js';
+
+let engine = null;
+
+/**
+ * Initialize Phonon WASM engine strictly from local offline assets (bundled APK or local storage).
+ * Never makes runtime network requests (`cache: false`, local `appassets.androidplatform.net` URLs).
+ */
+window.initPhonon = async (configJson) => {
+  try {
+    if (engine) {
+      try { engine.dispose(); } catch (_) {}
+      engine = null;
+    }
+    const cfg = typeof configJson === 'string' ? JSON.parse(configJson) : configJson;
+    const base = cfg.modelBase || '../cilla-mini/phonon/model/';
+    const voices = cfg.voices && Object.keys(cfg.voices).length > 0
+      ? cfg.voices
+      : { parisa: base + 'voices/parisa.safetensors' };
+    const defaultVoice = cfg.defaultVoice && voices[cfg.defaultVoice]
+      ? cfg.defaultVoice
+      : Object.keys(voices)[0];
+
+    engine = await PhononTTS.load({
+      lang: 'none',
+      rewrites: 'none',
+      quant: 'f32',
+      threads: 1,
+      device: 'cpu',
+      cache: false,
+      model: {
+        weights: { f32: base + 'model.safetensors' },
+        config: base + 'config.json',
+        tokenizer: base + 'tokenizer.json',
+        voices,
+        defaultVoice,
+      },
+    });
+    const loadedVoices = Array.isArray(engine.voices) ? engine.voices : Object.keys(voices);
+    NativeBridge.ready(JSON.stringify({
+      sampleRate: engine.sampleRate || 24000,
+      voices: loadedVoices,
+      device: engine.device || 'cpu',
+      threads: engine.threads || 1,
+    }));
+  } catch (e) {
+    NativeBridge.failed(String(e?.stack || e));
+  }
+};
+
+window.speak = async (text, voice, temperature) => {
+  try {
+    if (!engine) throw new Error('Phonon is not ready');
+    const samples = await engine.synth(text, { voice, temperature });
+    const bytes = new Uint8Array(samples.buffer, samples.byteOffset, samples.byteLength);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 16384) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 16384));
+    }
+    NativeBridge.audio(btoa(binary));
+  } catch (e) {
+    NativeBridge.failed(String(e?.stack || e));
+  }
+};
+
+window.disposePhonon = () => {
+  try {
+    if (engine) {
+      engine.dispose();
+      engine = null;
+    }
+  } catch (_) {}
+};
+
+// Notify Kotlin that the bridge ES module is loaded and ready for initPhonon(...)
+NativeBridge.bridgeLoaded();
+</script>
+</body>
+</html>
