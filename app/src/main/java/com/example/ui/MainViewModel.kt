@@ -64,7 +64,7 @@ sealed interface DownloadUiState {
 }
 
 data class VoiceAvailabilityState(
-    val activeVoiceId: String = PhononPocketTtsEngine.DEFAULT_VOICE_ID,
+    val activeVoiceId: String = "parisa",
     val activeVoiceLabel: String = "پریسا",
     val activeGender: NarratorGender? = NarratorGender.FEMALE,
     val isFemaleAvailable: Boolean = true,
@@ -128,7 +128,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ?: available.firstOrNull()
         if (inv.phononReady || available.isNotEmpty()) {
             VoiceAvailabilityState(
-                activeVoiceId = selected?.id ?: PhononPocketTtsEngine.DEFAULT_VOICE_ID,
+                activeVoiceId = selected?.id ?: "parisa",
                 activeVoiceLabel = selected?.label ?: "پریسا",
                 activeGender = selected?.gender ?: NarratorGender.FEMALE,
                 isFemaleAvailable = available.any { it.gender == NarratorGender.FEMALE } || available.isEmpty(),
