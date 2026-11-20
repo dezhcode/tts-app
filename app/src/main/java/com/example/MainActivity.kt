@@ -27,11 +27,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.LibraryMusic
-import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -75,7 +73,6 @@ import com.example.ui.screens.FontLibraryScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.ModelSetupSheetContent
 import com.example.ui.screens.StudioScreen
-import com.example.ui.screens.VoicesScreen
 import com.example.ui.theme.CillaMotion
 import com.example.ui.theme.CillaSpacing
 import com.example.ui.theme.CillaStroke
@@ -83,7 +80,6 @@ import com.example.ui.theme.CillaTtsTheme
 import com.example.ui.theme.LocalCillaFonts
 
 const val ROUTE_STUDIO = "studio"
-const val ROUTE_VOICES = "voices"
 const val ROUTE_LIBRARY = "library"
 const val ROUTE_FONTS = "fonts"
 
@@ -158,13 +154,6 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                 selectedIcon = Icons.Rounded.GraphicEq,
                 unselectedIcon = Icons.Outlined.GraphicEq,
                 testTag = "nav_studio",
-            ),
-            DockItem(
-                route = ROUTE_VOICES,
-                label = "صداها",
-                selectedIcon = Icons.Rounded.RecordVoiceOver,
-                unselectedIcon = Icons.Outlined.RecordVoiceOver,
-                testTag = "nav_voices",
             ),
             DockItem(
                 route = ROUTE_LIBRARY,
@@ -282,9 +271,8 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                     val routeOrder = remember {
                         mapOf(
                             ROUTE_STUDIO to 0,
-                            ROUTE_VOICES to 1,
-                            ROUTE_LIBRARY to 2,
-                            ROUTE_FONTS to 3,
+                            ROUTE_LIBRARY to 1,
+                            ROUTE_FONTS to 2,
                         )
                     }
 
@@ -368,24 +356,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                                 onUpdateTrimSilence = viewModel::updateTrimSilence,
                                 onUpdateAutoNormalize = viewModel::updateAutoNormalize,
                                 onOpenModelSetup = { showModelSheet = true },
-                                onNavigateToVoices = { navigateSingleTop(ROUTE_VOICES) },
-                            )
-                        }
-                        composable(ROUTE_VOICES) {
-                            VoicesScreen(
-                                voices = voices,
-                                activeVoiceId = settings.activeVoiceId,
-                                isRecording = isRecording,
-                                micLevel = micLevel,
-                                recordedSeconds = recordedSeconds,
-                                isPlaying = isPlaying,
-                                playingClipId = playingClipId,
-                                onStartRecording = viewModel::startVoiceRecording,
-                                onStopRecording = viewModel::stopVoiceRecording,
-                                onImportVoiceUri = viewModel::importVoiceFromUri,
-                                onSelectVoice = viewModel::selectVoice,
-                                onPlayVoice = viewModel::togglePlayVoice,
-                                onDeleteVoice = viewModel::deleteVoice,
+                                onNavigateToVoices = {},
                             )
                         }
                         composable(ROUTE_LIBRARY) {
