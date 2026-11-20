@@ -3,6 +3,10 @@ package com.example.ui
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
+import com.example.data.FontRepository
+import com.example.data.FontIds
+import com.example.data.AppFontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -62,11 +66,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = AppPreferences(application)
     private val modelRepo = ModelRepository(application)
     private val clipVoiceRepo = ClipAndVoiceRepository(application, modelRepo)
+    private val fontRepo = FontRepository(application)
 
     val audioPlayer = AudioPlayer(viewModelScope)
     val voiceRecorder = VoicePromptRecorder(viewModelScope)
 
     private var activeEngine: TtsEngine? = null
+
+    private val _customFonts = MutableStateFlow<Map<String, FontFamily>>(emptyMap())
+    val customFonts: StateFlow<Map<String, FontFamily>> = _customFonts.asStateFlow()
 
     val settings: StateFlow<UserSettings> = prefs.settings.stateIn(
         scope = viewModelScope,
@@ -110,6 +118,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshAll() {
         viewModelScope.launch {
+            _customFonts.value = fontRepo.loadInstalledCustomFontFamilies()
             reloadInventoryAndEngine()
             _voices.value = clipVoiceRepo.listVoicePrompts()
             _clips.value = clipVoiceRepo.loadClipHistory()
@@ -469,6 +478,67 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateDarkTheme(enabled: Boolean) {
         viewModelScope.launch { prefs.setDarkTheme(enabled) }
     }
+
+    fun selectPersianUiFont(fontId: String) {
+        viewModelScope.launch { prefs.setPersianUiFont(fontId) }
+    }
+
+    fun selectPersianHeadingFont(fontId: String) {
+        viewModelScope.launch { prefs.setPersianHeadingFont(fontId) }
+    }
+
+    fun selectPersianWeight(weight: AppFontWeight) {
+        viewModelScope.launch { prefs.setPersianWeight(weight) }
+    }
+
+    fun selectEnglishUiFont(fontId: String) {
+        viewModelScope.launch { prefs.setEnglishUiFont(fontId) }
+    }
+
+    fun selectEnglishHeadingFont(fontId: String) {
+        viewModelScope.launch { prefs.setEnglishHeadingFont(fontId) }
+    }
+
+    fun selectEnglishWeight(weight: AppFontWeight) {
+        viewModelScope.launch { prefs.setEnglishWeight(weight) }
+    }
+
+    fun importCustomFontFile(fontId: String, uri: Uri, applyAsHeading: Boolean) {
+        viewModelScope.launch {
+            fontRepo.importCustomFont(fontId, uri)
+                .onSuccess {
+                    _customFonts.value = fontRepo.loadInstalledCustomFontFamilies()
+                    if (applyAsHeading) {
+                        prefs.setPersianHeadingFont(fontId)
+                    } else {
+                        prefs.setPersianUiFont(fontId)
+                    }
+                    _statusBanner.value = "فونت با موفقیت نصب و فعال شد."
+                }
+                .onFailure { err ->
+                    _statusBanner.value = err.localizedMessage ?: "خطا در نصب فایل فونت."
+                }
+        }
+    }
+
+    fun removeCustomFontFile(fontId: String) {
+        viewModelScope.launch {
+            fontRepo.removeCustomFont(fontId)
+            _customFonts.value = fontRepo.loadInstalledCustomFontFamilies()
+            val cur = settings.value.typography
+            if (cur.persianUiFontId == fontId) prefs.setPersianUiFont(FontIds.VAZIRMATN)
+            if (cur.persianHeadingFontId == fontId) prefs.setPersianHeadingFont(FontIds.ESTEDAD)
+            _statusBanner.value = "فایل فونت محلی حذف شد."
+        }
+    }
+
+    fun resetTypographyDefaults() {
+        viewModelScope.launch {
+            prefs.resetTypographyToDefaults()
+            _statusBanner.value = "تنظیمات تایپوگرافی به حالت پیش‌فرض بازگشت."
+        }
+    }
+
 
     override fun onCleared() {
         super.onCleared()
