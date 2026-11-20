@@ -14,6 +14,7 @@ import com.example.audio.AudioPlayer
 import com.example.audio.VoicePromptRecorder
 import com.example.audio.WavAudioUtils
 import com.example.data.AppPreferences
+import com.example.data.BundledVoiceAsset
 import com.example.data.ClipAndVoiceRepository
 import com.example.data.ClipRecord
 import com.example.data.DownloadOutcome
@@ -26,6 +27,7 @@ import com.example.data.VoicePromptItem
 import com.example.data.VoiceSource
 import com.example.tts.EngineDiagnostics
 import com.example.tts.PersianTextNormalizer
+import com.example.tts.PhononPocketTtsEngine
 import com.example.tts.TtsEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,6 +62,17 @@ sealed interface DownloadUiState {
     data class Error(val message: String) : DownloadUiState
     data object Completed : DownloadUiState
 }
+
+data class VoiceAvailabilityState(
+    val activeVoiceId: String = PhononPocketTtsEngine.DEFAULT_VOICE_ID,
+    val activeVoiceLabel: String = "پریسا",
+    val activeGender: NarratorGender? = NarratorGender.FEMALE,
+    val isFemaleAvailable: Boolean = true,
+    val isMaleAvailable: Boolean = false,
+    val availablePhononVoices: List<BundledVoiceAsset> = emptyList(),
+    val isUsingCustomRecordedVoice: Boolean = false,
+    val isPhononBackend: Boolean = true,
+)
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -96,6 +109,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _inventory = MutableStateFlow(modelRepo.inspectInventory())
     val inventory: StateFlow<ModelInventory> = _inventory.asStateFlow()
+
+    val voiceAvailability: StateFlow<VoiceAvailabilityState> = combine(_inventory, _voices, settings) { inv, userVoices, cfg ->
+        val available = inv.availablePhononVoices
+        val selected = available.firstOrNull { it.id == cfg.activeVoiceId }
+            ?: available.firstOrNull { it.gender == cfg.narratorGender }
+            ?: available.firstOrNull()
+        if (inv.phononReady || available.isNotEmpty()) {
+            VoiceAvailabilityState(
+                activeVoiceId = selected?.id ?: PhononPocketTtsEngine.DEFAULT_VOICE_ID,
+                activeVoiceLabel = selected?.label ?: "پریسا",
+                activeGender = selected?.gender ?: NarratorGender.FEMALE,
+                isFemaleAvailable = available.any { it.gender == NarratorGender.FEMALE } || available.isEmpty(),
+                isMaleAvailable = available.any { it.gender == NarratorGender.MALE },
+                availablePhononVoices = available,
+                isPhononBackend = true,
+            )
+        } else {
+            val chosen = userVoices.firstOrNull { it.id == cfg.activeVoiceId }
+            VoiceAvailabilityState(
+                activeVoiceId = chosen?.id ?: cfg.narratorGender.id,
+                activeVoiceLabel = chosen?.label ?: cfg.narratorGender.persianName,
+                activeGender = if (chosen == null) cfg.narratorGender else null,
+                isFemaleAvailable = true,
+                isMaleAvailable = userVoices.any { it.label.contains("مرد") || it.label.contains("male", true) },
+                isUsingCustomRecordedVoice = chosen != null,
+                isPhononBackend = false,
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), VoiceAvailabilityState())
 
     private val _synthesisState = MutableStateFlow<SynthesisUiState>(SynthesisUiState.Idle)
     val synthesisState: StateFlow<SynthesisUiState> = _synthesisState.asStateFlow()
