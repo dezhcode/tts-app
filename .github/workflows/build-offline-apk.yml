@@ -68,6 +68,7 @@ jobs:
           test -n "$KEY_PASSWORD" || { echo "::error::Missing AVINA_KEY_PASSWORD secret"; exit 1; }
           printf '%s' "$AVINA_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/avina-release.jks"
           test -s "$RUNNER_TEMP/avina-release.jks"
+          keytool -list -keystore "$RUNNER_TEMP/avina-release.jks" -storetype JKS -storepass "$STORE_PASSWORD" -alias upload >/dev/null
           echo "KEYSTORE_PATH=$RUNNER_TEMP/avina-release.jks" >> "$GITHUB_ENV"
       - name: Build release-signed APK
         env:
