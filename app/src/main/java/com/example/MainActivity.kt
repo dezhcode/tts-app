@@ -147,13 +147,6 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                 testTag = "nav_studio",
             ),
             DockItem(
-                route = ROUTE_VOICES,
-                label = "صداها",
-                selectedIcon = Icons.Rounded.RecordVoiceOver,
-                unselectedIcon = Icons.Outlined.RecordVoiceOver,
-                testTag = "nav_voices",
-            ),
-            DockItem(
                 route = ROUTE_LIBRARY,
                 label = "آرشیو",
                 selectedIcon = Icons.Rounded.LibraryMusic,
@@ -271,8 +264,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                     val routeOrder = remember {
                         mapOf(
                             ROUTE_STUDIO to 0,
-                            ROUTE_VOICES to 1,
-                            ROUTE_LIBRARY to 2,
+                            ROUTE_LIBRARY to 1,
                         )
                     }
 
@@ -365,24 +357,7 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                                 onUpdateTrimSilence = viewModel::updateTrimSilence,
                                 onUpdateAutoNormalize = viewModel::updateAutoNormalize,
                                 onOpenModelSetup = { showModelSheet = true },
-                                onNavigateToVoices = { navigateSingleTop(ROUTE_VOICES) },
-                            )
-                        }
-                        composable(ROUTE_VOICES) {
-                            VoicesScreen(
-                                voices = voices,
-                                activeVoiceId = settings.activeVoiceId,
-                                isRecording = isRecording,
-                                micLevel = micLevel,
-                                recordedSeconds = recordedSeconds,
-                                isPlaying = isPlaying,
-                                playingClipId = playingClipId,
-                                onStartRecording = viewModel::startVoiceRecording,
-                                onStopRecording = viewModel::stopVoiceRecording,
-                                onImportVoiceUri = viewModel::importVoiceFromUri,
-                                onSelectVoice = viewModel::selectVoice,
-                                onPlayVoice = viewModel::togglePlayVoice,
-                                onDeleteVoice = viewModel::deleteVoice,
+                                onNavigateToVoices = {},
                             )
                         }
                         composable(ROUTE_LIBRARY) {
