@@ -110,6 +110,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _inventory = MutableStateFlow(modelRepo.inspectInventory())
     val inventory: StateFlow<ModelInventory> = _inventory.asStateFlow()
 
+
+
+    private val _synthesisState = MutableStateFlow<SynthesisUiState>(SynthesisUiState.Idle)
+    val synthesisState: StateFlow<SynthesisUiState> = _synthesisState.asStateFlow()
+
+    private val _downloadState = MutableStateFlow<DownloadUiState>(DownloadUiState.Idle)
+    val downloadState: StateFlow<DownloadUiState> = _downloadState.asStateFlow()
+
+    private val _voices = MutableStateFlow<List<VoicePromptItem>>(emptyList())
+    val voices: StateFlow<List<VoicePromptItem>> = _voices.asStateFlow()
+
     val voiceAvailability: StateFlow<VoiceAvailabilityState> = combine(_inventory, _voices, settings) { inv, userVoices, cfg ->
         val available = inv.availablePhononVoices
         val selected = available.firstOrNull { it.id == cfg.activeVoiceId }
@@ -138,15 +149,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), VoiceAvailabilityState())
-
-    private val _synthesisState = MutableStateFlow<SynthesisUiState>(SynthesisUiState.Idle)
-    val synthesisState: StateFlow<SynthesisUiState> = _synthesisState.asStateFlow()
-
-    private val _downloadState = MutableStateFlow<DownloadUiState>(DownloadUiState.Idle)
-    val downloadState: StateFlow<DownloadUiState> = _downloadState.asStateFlow()
-
-    private val _voices = MutableStateFlow<List<VoicePromptItem>>(emptyList())
-    val voices: StateFlow<List<VoicePromptItem>> = _voices.asStateFlow()
 
     private val _clips = MutableStateFlow<List<ClipRecord>>(emptyList())
     val clips: StateFlow<List<ClipRecord>> = _clips.asStateFlow()
