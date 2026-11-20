@@ -42,7 +42,7 @@ jobs:
           test -n "$HF_TOKEN" || { echo "::error::Missing HF_TOKEN secret"; exit 1; }
           python3 -m py_compile .github/scripts/bundle_cilla.py
           python3 .github/scripts/bundle_cilla.py
-          for file in config.json tokenizer.json model.safetensors voices/parisa.safetensors; do
+          for file in config.json tokenizer.json model.safetensors voices/parisa.safetensors voices/voice1.safetensors voices/voice2.safetensors; do
             test -s "app/src/main/assets/cilla-mini/phonon/model/$file" || { echo "::error::Missing bundled model file: $file"; exit 1; }
           done
       - uses: actions/setup-node@v4
