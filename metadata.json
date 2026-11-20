@@ -1,6 +1,6 @@
 {
-  "name": "Cilla TTS",
-  "description": "Offline Persian Text-to-Speech & Voice Cloning studio powered by the mehdi-hf/cilla-mini (Pocket-TTS 18M) architecture.",
+  "name": "Avina",
+  "description": "Minimal offline Persian Text-to-Speech and voice studio.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

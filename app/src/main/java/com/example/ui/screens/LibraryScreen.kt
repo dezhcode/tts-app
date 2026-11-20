@@ -2,32 +2,31 @@ package com.example.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
@@ -38,12 +37,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.example.data.ClipRecord
+import com.example.ui.components.AnimatedPlaybackButton
+import com.example.ui.components.CillaHairline
 import com.example.ui.components.InteractiveWaveformView
+import com.example.ui.theme.CillaMotion
+import com.example.ui.theme.CillaRadius
+import com.example.ui.theme.CillaSpacing
 import java.util.Locale
 
 @Composable
@@ -74,113 +81,87 @@ fun LibraryScreen(
     ) {
         LazyColumn(
             modifier = Modifier
-                .widthIn(max = 620.dp)
+                .widthIn(max = CillaSpacing.maxContentWidth)
                 .fillMaxSize(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 104.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(
+                start = CillaSpacing.screenHorizontal,
+                end = CillaSpacing.screenHorizontal,
+                top = CillaSpacing.md,
+                bottom = CillaSpacing.xl,
+            ),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    Text(
-                        text = "آرشیو نوارها",
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        Text(
-                            text = String.format(Locale.US, "%02d CLIPS", clips.size),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                Text(
+                    text = "آرشیو",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
             }
 
             if (clips.isEmpty()) {
                 item {
-                    Surface(
-                        shape = RoundedCornerShape(26.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        modifier = Modifier.fillMaxWidth(),
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 64.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(36.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.size(56.dp),
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.GraphicEq,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(26.dp),
-                                    )
-                                }
-                            }
-                            Text(
-                                text = "آرشیو خالی است",
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                            Text(
-                                text = "صداهایی که در استودیو می‌سازید، اینجا مانند نوارهای شماره‌گذاری‌شده نگهداری می‌شوند.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Rounded.GraphicEq,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(28.dp),
+                        )
+                        Text(
+                            text = "آرشیو خالی است",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
             } else {
                 itemsIndexed(clips, key = { _, c -> c.id }) { index, clip ->
                     val thisPlaying = isPlaying && playingClipId == clip.id
-                    Surface(
-                        shape = RoundedCornerShape(22.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(
-                            width = if (thisPlaying) 1.5.dp else 1.dp,
-                            color = if (thisPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
+                    val rowBg by animateColorAsState(
+                        targetValue = if (thisPlaying) {
+                            MaterialTheme.colorScheme.surface
+                        } else {
+                            Color.Transparent
+                        },
+                        animationSpec = CillaMotion.standardTween(),
+                        label = "clip_row_bg",
+                    )
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(CillaRadius.lg))
+                                .background(rowBg)
+                                .padding(horizontal = 10.dp, vertical = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                                        Text(
-                                            text = String.format(Locale.US, "#%02d", clips.size - index),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary,
-                                        )
-                                    }
-                                    Text(
-                                        text = clip.voiceLabel,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
+                                Text(
+                                    text = clip.voiceLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (thisPlaying) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                )
                                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                                     Text(
-                                        text = String.format(Locale.US, "%.1fs · 24kHz", clip.durationSec),
+                                        text = String.format(Locale.US, "%.1fs", clip.durationSec),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -190,6 +171,7 @@ fun LibraryScreen(
                             Text(
                                 text = clip.text,
                                 style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -197,13 +179,13 @@ fun LibraryScreen(
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                com.example.ui.components.AnimatedPlaybackButton(
+                                AnimatedPlaybackButton(
                                     isPlaying = thisPlaying,
                                     onClick = { onPlayClip(clip) },
-                                    buttonSize = 44.dp,
-                                    iconSize = 19.dp,
+                                    buttonSize = 42.dp,
+                                    iconSize = 18.dp,
                                 )
 
                                 InteractiveWaveformView(
@@ -224,7 +206,7 @@ fun LibraryScreen(
                                         Icons.Rounded.Download,
                                         contentDescription = "ذخیره WAV",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(19.dp),
                                     )
                                 }
                                 IconButton(
@@ -235,7 +217,7 @@ fun LibraryScreen(
                                         Icons.Rounded.Share,
                                         contentDescription = "اشتراک‌گذاری",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(19.dp),
                                     )
                                 }
                                 IconButton(
@@ -246,10 +228,14 @@ fun LibraryScreen(
                                         Icons.Rounded.DeleteOutline,
                                         contentDescription = "حذف",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(19.dp),
                                     )
                                 }
                             }
+                        }
+
+                        if (index < clips.lastIndex) {
+                            CillaHairline()
                         }
                     }
                 }

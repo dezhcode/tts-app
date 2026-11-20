@@ -4,7 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,7 +29,6 @@ import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +60,11 @@ import com.example.data.ModelInventory
 import com.example.data.UserSettings
 import com.example.ui.DownloadUiState
 import com.example.ui.ModelEngineState
+import com.example.ui.components.CillaHairline
+import com.example.ui.theme.CillaMotion
+import com.example.ui.theme.CillaRadius
+import com.example.ui.theme.CillaSpacing
+import com.example.ui.theme.LocalCillaFonts
 import java.util.Locale
 
 @Composable
@@ -75,7 +80,7 @@ fun ModelSetupSheetContent(
 ) {
     val context = LocalContext.current
     var tokenInput by remember(settings.hfToken) { mutableStateOf(settings.hfToken) }
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = HF Download, 1 = Local Files
+    var selectedTab by remember { mutableIntStateOf(0) }
 
     val multiFilePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
@@ -87,123 +92,123 @@ fun ModelSetupSheetContent(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 22.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .navigationBarsPadding()
+            .padding(horizontal = CillaSpacing.screenHorizontal, vertical = CillaSpacing.xs),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        // Sheet Header
+        // Minimal Sheet Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
-                Text(
-                    text = "هسته آفلاین سیلا",
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    Text(
-                        text = "mehdi-hf/cilla-mini · 18.2M",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-            ) {
+            Text(
+                text = "مدل آفلاین",
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            if (inventory.totalSizeMb > 0f) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     Text(
                         text = String.format(Locale.US, "%.1f MB", inventory.totalSizeMb),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(CillaRadius.sm))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
                     )
                 }
             }
         }
 
-        // LED File Inventory Strip
-        Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(
-                modifier = Modifier.padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(9.dp),
-            ) {
-                inventory.files.forEach { f ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (f.exists) MaterialTheme.colorScheme.secondary
-                                    else MaterialTheme.colorScheme.outline
-                                ),
-                        )
-                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                            Text(
-                                text = f.name,
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
+        CillaHairline()
+
+        // Clean File Inventory Checklist (no redundant inner card)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            inventory.files.forEach { f ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (f.exists) MaterialTheme.colorScheme.secondary
+                                else MaterialTheme.colorScheme.outline
+                            ),
+                    )
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                         Text(
-                            text = if (f.exists) String.format(Locale.US, "%.1f MB", f.sizeMb)
-                            else if (f.required) "ضروری" else "اختیاری",
+                            text = f.name,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (f.exists) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f),
                         )
                     }
+                    Text(
+                        text = if (f.exists) String.format(Locale.US, "%.1f MB", f.sizeMb)
+                        else if (f.required) "ضروری" else "اختیاری",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (f.exists) {
+                            MaterialTheme.colorScheme.secondary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
                 }
             }
         }
 
-        // Segmented Capsule Switcher: Online HF vs Offline Import
-        Surface(
-            shape = RoundedCornerShape(50),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
+        // Clean Segmented Switcher: Hugging Face vs Local Files
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(CillaRadius.md))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(4.dp),
         ) {
-            Row(modifier = Modifier.padding(4.dp)) {
-                listOf("دانلود از Hugging Face", "فایل محلی").forEachIndexed { idx, title ->
-                    val active = selectedTab == idx
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(50))
-                            .background(if (active) MaterialTheme.colorScheme.surface else Color.Transparent)
-                            .clickable { selectedTab = idx }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+            listOf("دانلود از Hugging Face", "فایل محلی").forEachIndexed { idx, title ->
+                val active = selectedTab == idx
+                val tabBg by animateColorAsState(
+                    targetValue = if (active) MaterialTheme.colorScheme.surface else Color.Transparent,
+                    animationSpec = CillaMotion.quickTween(),
+                    label = "setup_tab_bg",
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(CillaRadius.sm))
+                        .background(tabBg)
+                        .clickable { selectedTab = idx }
+                        .minimumInteractiveComponentSize()
+                        .padding(vertical = 9.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (active) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
                 }
             }
         }
 
         if (selectedTab == 0) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "توکن دسترسی Hugging Face",
+                        text = "توکن Hugging Face",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -214,9 +219,18 @@ fun ModelSetupSheetContent(
                             )
                         }
                     ) {
-                        Icon(Icons.Rounded.OpenInBrowser, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.Rounded.OpenInBrowser,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp),
+                        )
                         Spacer(Modifier.width(4.dp))
-                        Text("پذیرش مجوز مدل", style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            "صفحه مدل",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                     }
                 }
 
@@ -227,9 +241,10 @@ fun ModelSetupSheetContent(
                         placeholder = { Text("hf_...") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
-                        shape = RoundedCornerShape(50),
+                        shape = RoundedCornerShape(CillaRadius.md),
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            focusedBorderColor = MaterialTheme.colorScheme.onBackground,
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -241,10 +256,12 @@ fun ModelSetupSheetContent(
                 Button(
                     onClick = { onDownloadHuggingFace(tokenInput) },
                     enabled = !isDownloading,
-                    shape = RoundedCornerShape(50),
+                    shape = RoundedCornerShape(CillaRadius.lg),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
+                        containerColor = MaterialTheme.colorScheme.onBackground,
+                        contentColor = MaterialTheme.colorScheme.surface,
                     ),
+                    elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
@@ -252,7 +269,7 @@ fun ModelSetupSheetContent(
                 ) {
                     Icon(Icons.Rounded.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(if (isDownloading) "در حال دریافت..." else "شروع دانلود آفلاین")
+                    Text(if (isDownloading) "در حال دانلود..." else "دانلود مدل")
                 }
 
                 when (downloadState) {
@@ -263,10 +280,15 @@ fun ModelSetupSheetContent(
                                 progress = { p.fraction },
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .height(2.5.dp)
                                     .clip(RoundedCornerShape(50)),
                             )
                         } else {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            LinearProgressIndicator(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(2.5.dp),
+                            )
                         }
                         Text(
                             text = "${p.currentFile} (${p.fileIndex}/${p.totalFiles})",
@@ -299,19 +321,15 @@ fun ModelSetupSheetContent(
                 }
             }
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = "فایل‌های model.safetensors، tokenizer.model و config.yaml (یا فایل‌های ONNX) را مستقیماً از حافظه گوشی انتخاب کنید.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick = { multiFilePicker.launch(arrayOf("*/*")) },
-                    shape = RoundedCornerShape(50),
+                    shape = RoundedCornerShape(CillaRadius.lg),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.onBackground,
                         contentColor = MaterialTheme.colorScheme.surface,
                     ),
+                    elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
@@ -319,38 +337,34 @@ fun ModelSetupSheetContent(
                 ) {
                     Icon(Icons.Rounded.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("انتخاب فایل‌ها از حافظه دستگاه")
+                    Text("انتخاب فایل‌های مدل")
                 }
             }
         }
 
         if (modelState is ModelEngineState.Ready) {
-            val d = modelState.diagnostics
             Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f)),
+                shape = RoundedCornerShape(CillaRadius.md),
+                color = MaterialTheme.colorScheme.secondaryContainer,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    Text(
-                        text = "${d.engineName} · ${d.layerCount}L · d=${d.dModel} · ${d.sampleRate}Hz",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.padding(12.dp),
-                    )
-                }
+                Text(
+                    text = "مدل آماده است",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                )
             }
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        CillaHairline()
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("حالت تاریک استودیو", style = MaterialTheme.typography.bodyMedium)
+            Text("حالت تاریک", style = MaterialTheme.typography.bodyMedium)
             Switch(
                 checked = settings.darkTheme,
                 onCheckedChange = onToggleDarkTheme,
@@ -364,12 +378,17 @@ fun ModelSetupSheetContent(
                     .align(Alignment.End)
                     .minimumInteractiveComponentSize(),
             ) {
-                Icon(Icons.Rounded.DeleteSweep, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.Rounded.DeleteSweep,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp),
+                )
                 Spacer(Modifier.width(4.dp))
                 Text("پاکسازی حافظه مدل", color = MaterialTheme.colorScheme.error)
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(8.dp))
     }
 }

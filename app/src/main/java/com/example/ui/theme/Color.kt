@@ -2,44 +2,48 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Bespoke "Warm Alabaster Paper & Tactile Acoustic Atelier" Light Palette
-val PaperCanvas = Color(0xFFF4F1EA)         // Warm architectural limestone paper
-val PaperSheet = Color(0xFFFFFDF9)          // Sunlit crisp ivory card
-val PaperRecessed = Color(0xFFECE8DF)       // Tactile recessed well / pill track
-val PaperHairline = Color(0xFFE2DDD2)       // Ultra-crisp warm stone divider
+// Cilla Atelier — Timeless Light Editorial Palette
+// Warm gallery neutrals paired with two restrained architectural accents.
+val GalleryCanvas = Color(0xFFF7F5F0)       // Primary warm alabaster background
+val ArchivalPaper = Color(0xFFFDFCFA)       // Elevated pure warm ivory surface
+val LinenRecessed = Color(0xFFEFECE5)       // Tonal surface for inactive segments & wells
+val StoneHairline = Color(0xFFE3DFD6)       // Quiet architectural divider rule
+val StoneOutline = Color(0xFFC9C3B6)        // Subtle interactive border & inactive bars
 
-val EspressoInk = Color(0xFF171614)         // High-contrast editorial ink
-val SlateStone = Color(0xFF6B675E)          // Muted warm slate copy
+val CarbonInk = Color(0xFF181715)           // Primary editorial ink (~16:1 on GalleryCanvas)
+val MutedStone = Color(0xFF66625A)          // Secondary stone ink (~5.4:1 on GalleryCanvas)
 
-val VermilionAccent = Color(0xFFE04F2E)     // Signature tactile hardware coral-vermilion
-val VermilionSoft = Color(0xFFFCEAE4)       // Soft blush-vermilion tint
-val VermilionDeep = Color(0xFF9A2B12)       // High-contrast text on blush tint
+val StudioTerracotta = Color(0xFFB84A32)    // Primary restrained burnt clay accent (Female / Active Audio)
+val TerracottaWash = Color(0xFFF6E5DF)      // Subtle clay wash
+val TerracottaInk = Color(0xFF6F2717)       // Deep contrast text on clay wash
 
-val PersianTeal = Color(0xFF0E7490)         // Deep acoustic turquoise for ready/active state
-val PersianTealSoft = Color(0xFFE0F2F7)     // Pale ceramic turquoise pill
-val PersianTealDeep = Color(0xFF0A4B5E)     // Text on ceramic turquoise
+val StudioSlateTeal = Color(0xFF235359)     // Secondary architectural deep slate-teal (Male / Ready)
+val SlateTealWash = Color(0xFFE2ECEC)       // Subtle slate-teal wash
+val SlateTealInk = Color(0xFF15363B)        // Deep contrast text on slate-teal wash
 
-val WarmOchre = Color(0xFFC27803)           // Amber indicator for setup/attention
-val WarmOchreSoft = Color(0xFFFEF3C7)
-val WarmOchreDeep = Color(0xFF78350F)
+val WarmBronze = Color(0xFF8A652A)          // Restrained warm bronze for notices / custom badge
+val WarmBronzeWash = Color(0xFFF4ECE0)      // Soft parchment bronze wash
+val WarmBronzeInk = Color(0xFF593F14)       // High contrast text on bronze wash
 
-val CrimsonError = Color(0xFFC81E1E)
-val CrimsonErrorSoft = Color(0xFFFDE8E8)
+val MutedOxblood = Color(0xFFA63434)        // Understated editorial error tone
+val OxbloodWash = Color(0xFFF8E5E5)
+val OxbloodInk = Color(0xFF6B1A1A)
 
-// Bespoke "Matte Obsidian Atelier" Dark Palette (Optional Toggle)
-val ObsidianCanvas = Color(0xFF121110)
-val ObsidianSheet = Color(0xFF1C1A18)
-val ObsidianRecessed = Color(0xFF262420)
-val ObsidianHairline = Color(0xFF34312B)
+// Cilla Atelier — Balanced Matte Charcoal Dark Palette (Optional)
+val CharcoalCanvas = Color(0xFF141311)
+val CharcoalSurface = Color(0xFF1C1B18)
+val CharcoalRecessed = Color(0xFF262420)
+val CharcoalHairline = Color(0xFF33302A)
+val CharcoalOutline = Color(0xFF4A463E)
 
-val ChalkInk = Color(0xFFF5F2EB)
-val WarmAsh = Color(0xFFA39E93)
+val IvoryInk = Color(0xFFF3F0E9)
+val AshMuted = Color(0xFF9E998E)
 
-val VermilionGlow = Color(0xFFF26849)
-val VermilionDarkTint = Color(0xFF3E1C14)
-val TurquoiseGlow = Color(0xFF38BDF8)
-val TurquoiseDarkTint = Color(0xFF0E2F3D)
-val OchreGlow = Color(0xFFFBBF24)
-val OchreDarkTint = Color(0xFF3B2809)
-val ErrorDarkGlow = Color(0xFFF87171)
-val ErrorDarkTint = Color(0xFF3F1616)
+val TerracottaDark = Color(0xFFD9725B)
+val TerracottaDarkContainer = Color(0xFF3B1D16)
+val SlateTealDark = Color(0xFF6AA2A8)
+val SlateTealDarkContainer = Color(0xFF162D30)
+val BronzeDark = Color(0xFFC9A462)
+val BronzeDarkContainer = Color(0xFF342712)
+val OxbloodDark = Color(0xFFE07A7A)
+val OxbloodDarkContainer = Color(0xFF3B1818)

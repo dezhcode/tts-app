@@ -144,7 +144,7 @@ class ClipAndVoiceRepository(
         rtf: Float,
     ): ClipRecord = withContext(Dispatchers.IO) {
         val id = UUID.randomUUID().toString()
-        val fileName = "cilla_${System.currentTimeMillis()}.wav"
+        val fileName = "avina_${System.currentTimeMillis()}.wav"
         val outFile = File(clipsDir, fileName)
         WavAudioUtils.writeWav16Bit(pcm24k, sampleRate, outFile)
         val peaks = WavAudioUtils.computeWaveformPeaks(pcm24k)

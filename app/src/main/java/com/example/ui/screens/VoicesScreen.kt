@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,8 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AudioFile
 import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,15 +46,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.data.VoicePromptItem
 import com.example.data.VoiceSource
+import com.example.ui.components.AnimatedPlayPauseIcon
+import com.example.ui.components.CillaHairline
 import com.example.ui.components.TactileRecordOrb
+import com.example.ui.theme.CillaMotion
+import com.example.ui.theme.CillaRadius
+import com.example.ui.theme.CillaSpacing
+import com.example.ui.theme.CillaStroke
 import java.util.Locale
 
 @Composable
@@ -101,18 +108,30 @@ fun VoicesScreen(
     ) {
         LazyColumn(
             modifier = Modifier
-                .widthIn(max = 620.dp)
+                .widthIn(max = CillaSpacing.maxContentWidth)
                 .fillMaxSize(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 104.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(
+                start = CillaSpacing.screenHorizontal,
+                end = CillaSpacing.screenHorizontal,
+                top = CillaSpacing.md,
+                bottom = CillaSpacing.xl,
+            ),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            // Tactile Voice Cloning Atelier Card
+            item {
+                Text(
+                    text = "صداها",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+            }
+
+            // Minimalist Recording Stage — clean archival sheet, zero drop shadow
             item {
                 Surface(
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(CillaRadius.xl),
                     color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    shadowElevation = 2.dp,
+                    border = BorderStroke(CillaStroke.hairline, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
@@ -120,18 +139,8 @@ fun VoicesScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp, vertical = 22.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        Text(
-                            text = "اتاق ضبط صدای مرجع",
-                            style = MaterialTheme.typography.titleLarge,
-                        )
-                        Text(
-                            text = "۳ تا ۱۰ ثانیه با صدای آرام و بدون نویز صحبت کنید",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-
                         TactileRecordOrb(
                             isRecording = isRecording,
                             micLevel = micLevel,
@@ -141,7 +150,7 @@ fun VoicesScreen(
                                 } else {
                                     val granted = ContextCompat.checkSelfPermission(
                                         context,
-                                        Manifest.permission.RECORD_AUDIO
+                                        Manifest.permission.RECORD_AUDIO,
                                     ) == PackageManager.PERMISSION_GRANTED
                                     if (granted) {
                                         onStartRecording(voiceLabel)
@@ -152,25 +161,19 @@ fun VoicesScreen(
                             },
                         )
 
-                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                            Text(
-                                text = if (isRecording) {
-                                    String.format(Locale.US, "REC · %04.1fs / 10.0s", recordedSeconds)
-                                } else {
-                                    "READY · 24kHz MONO"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (isRecording) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            )
+                        if (isRecording) {
+                            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                                Text(
+                                    text = String.format(Locale.US, "%04.1fs / 10.0s", recordedSeconds),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
 
                         if (permissionDeniedNote) {
                             Text(
-                                text = "مجوز میکروفون رد شد؛ می‌توانید یک فایل WAV آماده انتخاب کنید.",
+                                text = "دسترسی میکروفون رد شد.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
@@ -184,13 +187,15 @@ fun VoicesScreen(
                             OutlinedTextField(
                                 value = voiceLabel,
                                 onValueChange = { voiceLabel = it },
-                                placeholder = { Text("نام پروفایل") },
+                                placeholder = { Text("نام پروفایل صدا") },
                                 singleLine = true,
                                 enabled = !isRecording,
-                                shape = RoundedCornerShape(50),
+                                shape = RoundedCornerShape(CillaRadius.md),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    focusedBorderColor = MaterialTheme.colorScheme.onBackground,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                                    focusedContainerColor = MaterialTheme.colorScheme.background,
                                 ),
                                 modifier = Modifier.weight(1f),
                             )
@@ -198,8 +203,8 @@ fun VoicesScreen(
                             OutlinedButton(
                                 onClick = { audioPickerLauncher.launch(arrayOf("audio/*", "*/*")) },
                                 enabled = !isRecording,
-                                shape = RoundedCornerShape(50),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                shape = RoundedCornerShape(CillaRadius.md),
+                                border = BorderStroke(CillaStroke.hairline, MaterialTheme.colorScheme.outlineVariant),
                                 modifier = Modifier
                                     .height(54.dp)
                                     .testTag("import_voice_button"),
@@ -207,10 +212,11 @@ fun VoicesScreen(
                                 Icon(
                                     imageVector = Icons.Rounded.AudioFile,
                                     contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(Modifier.width(6.dp))
-                                Text("ورود WAV")
+                                Text("فایل WAV", color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     }
@@ -220,112 +226,87 @@ fun VoicesScreen(
             if (voices.isNotEmpty()) {
                 item {
                     Text(
-                        text = "پروفایل‌های ثبت‌شده",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(top = 4.dp, start = 4.dp),
+                        text = "ذخیره‌شده",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
 
+                // Clean hairline-separated editorial list (no stacked card clutter)
                 itemsIndexed(voices, key = { _, v -> v.id }) { index, voice ->
                     val isSelected = activeVoiceId == voice.id
                     val thisPlaying = isPlaying && playingClipId == voice.id
-
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = if (isSelected) {
+                    val rowBg by animateColorAsState(
+                        targetValue = if (isSelected) {
                             MaterialTheme.colorScheme.surface
                         } else {
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                            Color.Transparent
                         },
-                        border = BorderStroke(
-                            width = if (isSelected) 1.5.dp else 1.dp,
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.outlineVariant
-                            },
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(20.dp))
-                            .clickable { onSelectVoice(voice.id) },
-                    ) {
+                        animationSpec = CillaMotion.quickTween(),
+                        label = "voice_row_bg",
+                    )
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                                .clip(RoundedCornerShape(CillaRadius.md))
+                                .background(rowBg)
+                                .clickable { onSelectVoice(voice.id) }
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            // Studio index badge
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) {
-                                    MaterialTheme.colorScheme.primaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                },
-                            ) {
-                                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                                    Text(
-                                        text = String.format(Locale.US, "V%02d", index + 1),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (isSelected) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                    )
-                                }
-                            }
-
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 ) {
-                                    Text(text = voice.label, style = MaterialTheme.typography.titleSmall)
+                                    Text(
+                                        text = voice.label,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    )
                                     if (isSelected) {
                                         Box(
                                             modifier = Modifier
-                                                .size(7.dp)
+                                                .size(6.dp)
                                                 .clip(CircleShape)
                                                 .background(MaterialTheme.colorScheme.primary),
                                         )
                                     }
                                 }
-                                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                                    Text(
-                                        text = if (voice.isSafetensorsCache) {
-                                            "KV STATE · SAFETENSORS"
-                                        } else {
-                                            String.format(Locale.US, "%.1fs · WAV", voice.durationSec)
-                                        },
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
+                                if (!voice.isSafetensorsCache) {
+                                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                                        Text(
+                                            text = String.format(Locale.US, "%.1fs", voice.durationSec),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
                                 }
                             }
 
                             if (!voice.isSafetensorsCache) {
-                                val iconTint by androidx.compose.animation.animateColorAsState(
+                                val iconTint by animateColorAsState(
                                     targetValue = if (thisPlaying) {
                                         MaterialTheme.colorScheme.primary
                                     } else {
                                         MaterialTheme.colorScheme.onSurface
                                     },
+                                    animationSpec = CillaMotion.quickTween(),
                                     label = "voice_play_tint",
                                 )
                                 IconButton(
                                     onClick = { onPlayVoice(voice) },
                                     modifier = Modifier.minimumInteractiveComponentSize(),
                                 ) {
-                                    com.example.ui.components.AnimatedPlayPauseIcon(
+                                    AnimatedPlayPauseIcon(
                                         isPlaying = thisPlaying,
                                         tint = iconTint,
                                         contentDescription = if (thisPlaying) "توقف" else "پخش نمونه",
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(19.dp),
                                     )
                                 }
                             }
@@ -339,9 +320,14 @@ fun VoicesScreen(
                                         imageVector = Icons.Rounded.DeleteOutline,
                                         contentDescription = "حذف صدا",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp),
                                     )
                                 }
                             }
+                        }
+
+                        if (index < voices.lastIndex) {
+                            CillaHairline(modifier = Modifier.padding(horizontal = 8.dp))
                         }
                     }
                 }
