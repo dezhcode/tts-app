@@ -5,12 +5,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
@@ -19,19 +16,23 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.RecordVoiceOver
+import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -52,8 +53,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
@@ -68,17 +67,25 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.ui.MainViewModel
 import com.example.ui.ModelEngineState
+import com.example.ui.components.CillaBottomBar
+import com.example.ui.components.CillaHairline
 import com.example.ui.components.DockItem
-import com.example.ui.components.FloatingStudioDock
 import com.example.ui.components.ModelStatusOrb
+import com.example.ui.screens.FontLibraryScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.ModelSetupSheetContent
 import com.example.ui.screens.StudioScreen
+import com.example.ui.screens.VoicesScreen
+import com.example.ui.theme.CillaMotion
+import com.example.ui.theme.CillaSpacing
+import com.example.ui.theme.CillaStroke
 import com.example.ui.theme.CillaTtsTheme
+import com.example.ui.theme.LocalCillaFonts
 
 const val ROUTE_STUDIO = "studio"
 const val ROUTE_VOICES = "voices"
 const val ROUTE_LIBRARY = "library"
+const val ROUTE_FONTS = "fonts"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -87,9 +94,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             val viewModel: MainViewModel = viewModel()
             val settings by viewModel.settings.collectAsStateWithLifecycle()
+            val customFonts by viewModel.customFonts.collectAsStateWithLifecycle()
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                CillaTtsTheme(darkTheme = settings.darkTheme) {
+                CillaTtsTheme(
+                    darkTheme = settings.darkTheme,
+                    typographySettings = settings.typography,
+                    customFonts = customFonts,
+                ) {
                     CillaTtsApp(viewModel = viewModel)
                 }
             }
@@ -115,6 +127,8 @@ fun CillaTtsApp(viewModel: MainViewModel) {
     val voices by viewModel.voices.collectAsStateWithLifecycle()
     val clips by viewModel.clips.collectAsStateWithLifecycle()
     val statusBanner by viewModel.statusBanner.collectAsStateWithLifecycle()
+    val customFonts by viewModel.customFonts.collectAsStateWithLifecycle()
+    val voiceAvailability by viewModel.voiceAvailability.collectAsStateWithLifecycle()
 
     val isPlaying by viewModel.audioPlayer.isPlaying.collectAsStateWithLifecycle()
     val playingClipId by viewModel.audioPlayer.playingClipId.collectAsStateWithLifecycle()
@@ -146,11 +160,25 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                 testTag = "nav_studio",
             ),
             DockItem(
+                route = ROUTE_VOICES,
+                label = "صداها",
+                selectedIcon = Icons.Rounded.RecordVoiceOver,
+                unselectedIcon = Icons.Outlined.RecordVoiceOver,
+                testTag = "nav_voices",
+            ),
+            DockItem(
                 route = ROUTE_LIBRARY,
                 label = "آرشیو",
                 selectedIcon = Icons.Rounded.LibraryMusic,
                 unselectedIcon = Icons.Outlined.LibraryMusic,
                 testTag = "nav_library",
+            ),
+            DockItem(
+                route = ROUTE_FONTS,
+                label = "فونت‌ها",
+                selectedIcon = Icons.Rounded.TextFields,
+                unselectedIcon = Icons.Outlined.TextFields,
+                testTag = "nav_fonts",
             ),
         )
     }
@@ -166,31 +194,10 @@ fun CillaTtsApp(viewModel: MainViewModel) {
         }
     }
 
-    val canvasBg = MaterialTheme.colorScheme.background
-    val dotGridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
-
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(canvasBg)
-            .drawBehind {
-                // Subtle architectural paper dot-grid atmosphere
-                val step = 24.dp.toPx()
-                val radius = 0.9.dp.toPx()
-                var y = step / 2f
-                while (y < size.height) {
-                    var x = step / 2f
-                    while (x < size.width) {
-                        drawCircle(
-                            color = dotGridColor,
-                            radius = radius,
-                            center = Offset(x, y),
-                        )
-                        x += step
-                    }
-                    y += step
-                }
-            },
+            .background(MaterialTheme.colorScheme.background),
     ) {
         val useRail = maxWidth >= 600.dp
 
@@ -199,34 +206,38 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                 .fillMaxSize()
                 .statusBarsPadding(),
         ) {
-            // Bespoke Editorial Top Header
+            // Minimal Avina Header — Brand name + essential model status only
+            val avinaFonts = LocalCillaFonts.current
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 22.dp, vertical = 14.dp),
+                    .padding(horizontal = CillaSpacing.screenHorizontal, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = "سیلا",
-                        style = MaterialTheme.typography.displaySmall,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                    )
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = "Avina",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontFamily = avinaFonts.englishHeading,
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(5.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                        )
+                    }
                 }
 
                 ModelStatusOrb(
                     label = when (modelState) {
-                        is ModelEngineState.Ready -> "مدل آماده"
+                        is ModelEngineState.Ready -> "آماده"
                         is ModelEngineState.Loading -> "بارگذاری..."
                         else -> "نصب مدل"
                     },
@@ -237,7 +248,9 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                 )
             }
 
-            // Main Content + Adaptive Rail/Floating Dock
+            CillaHairline()
+
+            // Main Content Region + Adaptive Rail / Bottom Bar
             Box(modifier = Modifier.weight(1f)) {
                 Row(modifier = Modifier.fillMaxSize()) {
                     if (useRail) {
@@ -258,15 +271,24 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                                 )
                             }
                         }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(CillaStroke.hairline)
+                                .background(MaterialTheme.colorScheme.outlineVariant),
+                        )
                     }
 
                     val routeOrder = remember {
                         mapOf(
                             ROUTE_STUDIO to 0,
-                            ROUTE_LIBRARY to 1,
+                            ROUTE_VOICES to 1,
+                            ROUTE_LIBRARY to 2,
+                            ROUTE_FONTS to 3,
                         )
                     }
 
+                    // Restrained RTL directional transitions — smooth glide + fade, zero visual jitter
                     NavHost(
                         navController = navController,
                         startDestination = ROUTE_STUDIO,
@@ -274,16 +296,12 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                         enterTransition = {
                             val from = routeOrder[initialState.destination.route] ?: 0
                             val to = routeOrder[targetState.destination.route] ?: 0
-                            // RTL spatial flow: moving forward (0 -> 1 -> 2) enters from the left (-x)
                             val dir = if (to >= from) -1 else 1
                             slideInHorizontally(
-                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
-                                initialOffsetX = { fullWidth -> (fullWidth * 0.22f).toInt() * dir },
+                                animationSpec = tween(durationMillis = CillaMotion.PageMs, easing = CillaMotion.EaseOut),
+                                initialOffsetX = { fullWidth -> (fullWidth * 0.12f).toInt() * dir },
                             ) + fadeIn(
-                                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
-                            ) + scaleIn(
-                                initialScale = 0.96f,
-                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                                animationSpec = tween(durationMillis = CillaMotion.StandardMs, easing = CillaMotion.EaseOut),
                             )
                         },
                         exitTransition = {
@@ -291,13 +309,10 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                             val to = routeOrder[targetState.destination.route] ?: 0
                             val dir = if (to >= from) 1 else -1
                             slideOutHorizontally(
-                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                targetOffsetX = { fullWidth -> (fullWidth * 0.14f).toInt() * dir },
+                                animationSpec = tween(durationMillis = CillaMotion.StandardMs, easing = CillaMotion.EaseOut),
+                                targetOffsetX = { fullWidth -> (fullWidth * 0.08f).toInt() * dir },
                             ) + fadeOut(
-                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-                            ) + scaleOut(
-                                targetScale = 0.96f,
-                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                animationSpec = tween(durationMillis = CillaMotion.QuickMs, easing = CillaMotion.EaseOut),
                             )
                         },
                         popEnterTransition = {
@@ -305,13 +320,10 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                             val to = routeOrder[targetState.destination.route] ?: 0
                             val dir = if (to >= from) -1 else 1
                             slideInHorizontally(
-                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
-                                initialOffsetX = { fullWidth -> (fullWidth * 0.22f).toInt() * dir },
+                                animationSpec = tween(durationMillis = CillaMotion.PageMs, easing = CillaMotion.EaseOut),
+                                initialOffsetX = { fullWidth -> (fullWidth * 0.12f).toInt() * dir },
                             ) + fadeIn(
-                                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
-                            ) + scaleIn(
-                                initialScale = 0.96f,
-                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                                animationSpec = tween(durationMillis = CillaMotion.StandardMs, easing = CillaMotion.EaseOut),
                             )
                         },
                         popExitTransition = {
@@ -319,13 +331,10 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                             val to = routeOrder[targetState.destination.route] ?: 0
                             val dir = if (to >= from) 1 else -1
                             slideOutHorizontally(
-                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                targetOffsetX = { fullWidth -> (fullWidth * 0.14f).toInt() * dir },
+                                animationSpec = tween(durationMillis = CillaMotion.StandardMs, easing = CillaMotion.EaseOut),
+                                targetOffsetX = { fullWidth -> (fullWidth * 0.08f).toInt() * dir },
                             ) + fadeOut(
-                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-                            ) + scaleOut(
-                                targetScale = 0.96f,
-                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                animationSpec = tween(durationMillis = CillaMotion.QuickMs, easing = CillaMotion.EaseOut),
                             )
                         },
                     ) {
@@ -336,12 +345,15 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                                 settings = settings,
                                 modelState = modelState,
                                 synthesisState = synthesisState,
+                                voices = voices,
                                 activeCustomVoice = activeCustomVoice,
+                                voiceAvailability = voiceAvailability,
                                 isPlaying = isPlaying,
                                 playingClipId = playingClipId,
                                 playProgress = playProgress,
                                 onTextChange = viewModel::updateInputText,
                                 onSelectNarratorGender = viewModel::selectNarratorGender,
+                                onSelectVoice = viewModel::selectVoice,
                                 onSynthesize = viewModel::synthesizeCurrentText,
                                 onPlayClip = viewModel::togglePlayClip,
                                 onShareClip = { clip ->
@@ -356,7 +368,24 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                                 onUpdateTrimSilence = viewModel::updateTrimSilence,
                                 onUpdateAutoNormalize = viewModel::updateAutoNormalize,
                                 onOpenModelSetup = { showModelSheet = true },
-                                onNavigateToVoices = {},
+                                onNavigateToVoices = { navigateSingleTop(ROUTE_VOICES) },
+                            )
+                        }
+                        composable(ROUTE_VOICES) {
+                            VoicesScreen(
+                                voices = voices,
+                                activeVoiceId = settings.activeVoiceId,
+                                isRecording = isRecording,
+                                micLevel = micLevel,
+                                recordedSeconds = recordedSeconds,
+                                isPlaying = isPlaying,
+                                playingClipId = playingClipId,
+                                onStartRecording = viewModel::startVoiceRecording,
+                                onStopRecording = viewModel::stopVoiceRecording,
+                                onImportVoiceUri = viewModel::importVoiceFromUri,
+                                onSelectVoice = viewModel::selectVoice,
+                                onPlayVoice = viewModel::togglePlayVoice,
+                                onDeleteVoice = viewModel::deleteVoice,
                             )
                         }
                         composable(ROUTE_LIBRARY) {
@@ -375,24 +404,38 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                                 onDeleteClip = viewModel::deleteClip,
                             )
                         }
+                        composable(ROUTE_FONTS) {
+                            FontLibraryScreen(
+                                typographySettings = settings.typography,
+                                customFonts = customFonts,
+                                onSelectPersianUiFont = viewModel::selectPersianUiFont,
+                                onSelectPersianHeadingFont = viewModel::selectPersianHeadingFont,
+                                onSelectPersianWeight = viewModel::selectPersianWeight,
+                                onSelectEnglishUiFont = viewModel::selectEnglishUiFont,
+                                onSelectEnglishHeadingFont = viewModel::selectEnglishHeadingFont,
+                                onSelectEnglishWeight = viewModel::selectEnglishWeight,
+                                onImportCustomFontFile = viewModel::importCustomFontFile,
+                                onRemoveCustomFontFile = viewModel::removeCustomFontFile,
+                                onResetDefaults = viewModel::resetTypographyDefaults,
+                            )
+                        }
                     }
-                }
-
-                // Floating Sculpted Capsule Dock on handheld screens
-                if (!useRail) {
-                    FloatingStudioDock(
-                        items = destinations,
-                        currentRoute = currentRoute,
-                        onSelect = ::navigateSingleTop,
-                        modifier = Modifier.align(Alignment.BottomCenter),
-                    )
                 }
 
                 SnackbarHost(
                     hostState = snackbarHostState,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = if (useRail) 16.dp else 88.dp),
+                        .padding(bottom = 12.dp),
+                )
+            }
+
+            // Seamless architectural bottom navigation bar on handheld widths
+            if (!useRail) {
+                CillaBottomBar(
+                    items = destinations,
+                    currentRoute = currentRoute,
+                    onSelect = ::navigateSingleTop,
                 )
             }
         }
