@@ -43,6 +43,8 @@ def main():
         "phonon/model/tokenizer.json",
         "phonon/model/model.safetensors",
         "phonon/model/voices/parisa.safetensors",
+        "phonon/model/voices/voice1.safetensors",
+        "phonon/model/voices/voice2.safetensors",
     }
     if not phonon_required.issubset(names):
         raise RuntimeError("Phonon checkpoint is incomplete: " + str(sorted(phonon_required - names)))
