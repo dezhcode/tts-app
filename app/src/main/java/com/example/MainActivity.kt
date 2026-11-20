@@ -74,7 +74,6 @@ import com.example.ui.components.ModelStatusOrb
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.ModelSetupSheetContent
 import com.example.ui.screens.StudioScreen
-import com.example.ui.screens.VoicesScreen
 import com.example.ui.theme.CillaTtsTheme
 
 const val ROUTE_STUDIO = "studio"
