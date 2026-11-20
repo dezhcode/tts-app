@@ -127,7 +127,8 @@ class OnnxPocketTtsEngine private constructor(
         }
 
         val ldim = config.latentDim
-        val rng = Random(42L + tokenIds.sum().toLong())
+        val voiceSeed = voice?.id?.hashCode()?.toLong() ?: 0L
+        val rng = Random(42L + tokenIds.sum().toLong() + voiceSeed)
         val maxFrames = (tokenIds.size * 6 + 24).coerceIn(24, 200)
         val latents = ArrayList<FloatArray>(maxFrames)
         var currentLatent = FloatArray(ldim) { Float.NaN }
