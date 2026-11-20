@@ -25,7 +25,23 @@ data class ModelFileStatus(
     val sizeMb: Float get() = sizeBytes / (1024f * 1024f)
 }
 
+enum class PhononModelSource { BUNDLED_APK, LOCAL_STORAGE, NONE }
+
+data class BundledVoiceAsset(
+    val id: String,
+    val label: String,
+    val gender: NarratorGender?,
+    val urlPath: String,
+    val isBundledAsset: Boolean,
+    val localFile: File? = null,
+)
+
 data class ModelInventory(
+    val phononReady: Boolean = false,
+    val phononRuntimeReady: Boolean = false,
+    val phononSource: PhononModelSource = PhononModelSource.NONE,
+    val availablePhononVoices: List<BundledVoiceAsset> = emptyList(),
+    val missingPhononAssets: List<String> = emptyList(),
     val safetensorsReady: Boolean,
     val onnxReady: Boolean,
     val tokenizerReady: Boolean,
@@ -34,7 +50,7 @@ data class ModelInventory(
     val totalSizeMb: Float,
 ) {
     val canRunOffline: Boolean
-        get() = tokenizerReady && (safetensorsReady || onnxReady)
+        get() = phononReady || (tokenizerReady && (safetensorsReady || onnxReady))
 }
 
 data class DownloadProgress(
