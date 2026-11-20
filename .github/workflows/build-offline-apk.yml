@@ -100,7 +100,7 @@ jobs:
           NOTES="Avina 0.1.0 Android APK. Signed with the permanent Avina release keystore."
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" Avina-0.1.0.apk --clobber
-            gh release edit "$TAG" --title "Avina 0.1.0" --notes "$NOTES" --latest
+            gh release edit "$TAG" --title "Avina 0.1.0" --notes "$NOTES"
           else
             gh release create "$TAG" Avina-0.1.0.apk --target "$GITHUB_SHA" --title "Avina 0.1.0" --notes "$NOTES" --latest
           fi
