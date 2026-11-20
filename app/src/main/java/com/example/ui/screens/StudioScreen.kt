@@ -441,10 +441,10 @@ fun StudioScreen(
             // Direct Female / Male Narrator Switcher inside Studio
             StudioNarratorSelector(
                 selectedGender = settings.narratorGender,
-                isCustomVoiceActive = activeCustomVoice != null,
-                customVoiceLabel = activeCustomVoice?.label,
+                isCustomVoiceActive = false,
+                customVoiceLabel = null,
                 onSelectGender = onSelectNarratorGender,
-                onOpenCustomVoices = onNavigateToVoices,
+                onOpenCustomVoices = {},
             )
 
             // Asymmetric One-Thumb Hardware Action Bar (Primary Vermilion Pill + Custom Voice Cloning Capsule)
@@ -483,62 +483,7 @@ fun StudioScreen(
                     )
                 }
 
-                // Tactile Custom Voice Profile Capsule
-                Surface(
-                    onClick = onNavigateToVoices,
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(
-                        width = if (activeCustomVoice != null) 1.5.dp else 1.dp,
-                        color = if (activeCustomVoice != null) {
-                            MaterialTheme.colorScheme.tertiary
-                        } else {
-                            MaterialTheme.colorScheme.outlineVariant
-                        },
-                    ),
-                    modifier = Modifier
-                        .height(58.dp)
-                        .testTag("active_voice_selector"),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (activeCustomVoice != null) {
-                                        MaterialTheme.colorScheme.tertiaryContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.secondaryContainer
-                                    }
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.RecordVoiceOver,
-                                contentDescription = "صدای سفارشی",
-                                tint = if (activeCustomVoice != null) {
-                                    MaterialTheme.colorScheme.tertiary
-                                } else {
-                                    MaterialTheme.colorScheme.secondary
-                                },
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                        Text(
-                            text = activeCustomVoice?.label ?: "صدای سفارشی",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.widthIn(max = 96.dp),
-                        )
-                    }
-                }
+
             }
 
             if (isSynthesizing) {
