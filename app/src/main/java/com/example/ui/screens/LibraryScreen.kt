@@ -6,41 +6,41 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.example.data.ClipRecord
 import com.example.ui.components.InteractiveWaveformView
@@ -74,50 +74,66 @@ fun LibraryScreen(
     ) {
         LazyColumn(
             modifier = Modifier
-                .widthIn(max = 640.dp)
-                .fillMaxSize()
-                .padding(horizontal = 20.dp),
+                .widthIn(max = 620.dp)
+                .fillMaxSize(),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 104.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "بایگانی صداها",
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                Text(
-                    text = "${clips.size} فایل ذخیره‌شده",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Text(
+                        text = "آرشیو نوارها",
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                        Text(
+                            text = String.format(Locale.US, "%02d CLIPS", clips.size),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
 
             if (clips.isEmpty()) {
                 item {
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                        shape = RoundedCornerShape(26.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(28.dp),
+                                .padding(36.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.LibraryMusic,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(34.dp),
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.size(56.dp),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.GraphicEq,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(26.dp),
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "آرشیو خالی است",
+                                style = MaterialTheme.typography.titleMedium,
                             )
                             Text(
-                                text = "هنوز صدایی ساخته نشده است",
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            Text(
-                                text = "فایل‌های صوتی تولیدشده در بخش گفتار اینجا نمایش داده می‌شوند.",
+                                text = "صداهایی که در استودیو می‌سازید، اینجا مانند نوارهای شماره‌گذاری‌شده نگهداری می‌شوند.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -125,55 +141,77 @@ fun LibraryScreen(
                     }
                 }
             } else {
-                items(clips, key = { it.id }) { clip ->
+                itemsIndexed(clips, key = { _, c -> c.id }) { index, clip ->
                     val thisPlaying = isPlaying && playingClipId == clip.id
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
+                        shape = RoundedCornerShape(22.dp),
                         color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        border = BorderStroke(
+                            width = if (thisPlaying) 1.5.dp else 1.dp,
+                            color = if (thisPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
-                            modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                                        Text(
+                                            text = String.format(Locale.US, "#%02d", clips.size - index),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                    Text(
+                                        text = clip.voiceLabel,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                                    Text(
+                                        text = String.format(Locale.US, "%.1fs · 24kHz", clip.durationSec),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+
                             Text(
                                 text = clip.text,
                                 style = MaterialTheme.typography.bodyMedium,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                FilledIconButton(
+                                com.example.ui.components.AnimatedPlaybackButton(
+                                    isPlaying = thisPlaying,
                                     onClick = { onPlayClip(clip) },
-                                    modifier = Modifier.size(42.dp),
-                                    shape = CircleShape,
-                                    colors = IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        contentColor = MaterialTheme.colorScheme.primary,
-                                    ),
-                                ) {
-                                    Icon(
-                                        imageVector = if (thisPlaying) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
-                                        contentDescription = if (thisPlaying) "توقف" else "پخش",
-                                    )
-                                }
+                                    buttonSize = 44.dp,
+                                    iconSize = 19.dp,
+                                )
 
-                                Column(modifier = Modifier.weight(1f)) {
-                                    InteractiveWaveformView(
-                                        peaks = clip.waveformPeaks,
-                                        progress = if (thisPlaying) playProgress else 0f,
-                                        isPlaying = thisPlaying,
-                                    )
-                                    Text(
-                                        text = "${clip.voiceLabel} • ${String.format(Locale.US, "%.1fs", clip.durationSec)}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
+                                InteractiveWaveformView(
+                                    peaks = clip.waveformPeaks,
+                                    progress = if (thisPlaying) playProgress else 0f,
+                                    isPlaying = thisPlaying,
+                                    modifier = Modifier.weight(1f),
+                                )
 
                                 IconButton(
                                     onClick = {
@@ -184,8 +222,9 @@ fun LibraryScreen(
                                 ) {
                                     Icon(
                                         Icons.Rounded.Download,
-                                        contentDescription = "ذخیره در دستگاه",
+                                        contentDescription = "ذخیره WAV",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp),
                                     )
                                 }
                                 IconButton(
@@ -196,6 +235,7 @@ fun LibraryScreen(
                                         Icons.Rounded.Share,
                                         contentDescription = "اشتراک‌گذاری",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp),
                                     )
                                 }
                                 IconButton(
@@ -203,9 +243,10 @@ fun LibraryScreen(
                                     modifier = Modifier.minimumInteractiveComponentSize(),
                                 ) {
                                     Icon(
-                                        Icons.Rounded.Delete,
-                                        contentDescription = "حذف فایل",
+                                        Icons.Rounded.DeleteOutline,
+                                        contentDescription = "حذف",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp),
                                     )
                                 }
                             }
@@ -213,8 +254,6 @@ fun LibraryScreen(
                     }
                 }
             }
-
-            item { Spacer(Modifier.height(12.dp)) }
         }
     }
 }

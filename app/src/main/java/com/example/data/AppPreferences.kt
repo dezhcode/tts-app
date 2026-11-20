@@ -14,9 +14,44 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "cilla_tts_prefs")
 
+enum class NarratorGender(
+    val id: String,
+    val persianName: String,
+    val roleLabel: String,
+    val timbreNote: String,
+    val pitchScale: Float,
+    val baseFreqHz: Float,
+) {
+    FEMALE(
+        id = "builtin_female",
+        persianName = "سارا",
+        roleLabel = "زن",
+        timbreNote = "سارا · لطیف و روشن",
+        pitchScale = 1.18f,
+        baseFreqHz = 215f,
+    ),
+    MALE(
+        id = "builtin_male",
+        persianName = "آرش",
+        roleLabel = "مرد",
+        timbreNote = "آرش · بم و رسا",
+        pitchScale = 0.78f,
+        baseFreqHz = 115f,
+    );
+
+    val fullLabel: String
+        get() = "صدای $roleLabel ($persianName)"
+
+    companion object {
+        fun fromStored(value: String?): NarratorGender =
+            entries.firstOrNull { it.name.equals(value, ignoreCase = true) || it.id == value } ?: FEMALE
+    }
+}
+
 data class UserSettings(
     val hfToken: String = "",
     val activeVoiceId: String = "",
+    val narratorGender: NarratorGender = NarratorGender.FEMALE,
     val temperature: Float = 0.7f,
     val flowSteps: Int = 1,
     val sentencePauseMs: Int = 220,
@@ -29,6 +64,7 @@ class AppPreferences(private val context: Context) {
     private object Keys {
         val HF_TOKEN = stringPreferencesKey("hf_token")
         val ACTIVE_VOICE_ID = stringPreferencesKey("active_voice_id")
+        val NARRATOR_GENDER = stringPreferencesKey("narrator_gender")
         val TEMPERATURE = floatPreferencesKey("temperature")
         val FLOW_STEPS = intPreferencesKey("flow_steps")
         val SENTENCE_PAUSE_MS = intPreferencesKey("sentence_pause_ms")
@@ -41,6 +77,7 @@ class AppPreferences(private val context: Context) {
         UserSettings(
             hfToken = prefs[Keys.HF_TOKEN] ?: "",
             activeVoiceId = prefs[Keys.ACTIVE_VOICE_ID] ?: "",
+            narratorGender = NarratorGender.fromStored(prefs[Keys.NARRATOR_GENDER]),
             temperature = prefs[Keys.TEMPERATURE] ?: 0.7f,
             flowSteps = prefs[Keys.FLOW_STEPS] ?: 1,
             sentencePauseMs = prefs[Keys.SENTENCE_PAUSE_MS] ?: 220,
@@ -56,6 +93,13 @@ class AppPreferences(private val context: Context) {
 
     suspend fun setActiveVoiceId(id: String) {
         context.dataStore.edit { it[Keys.ACTIVE_VOICE_ID] = id }
+    }
+
+    suspend fun setNarratorGender(gender: NarratorGender) {
+        context.dataStore.edit {
+            it[Keys.NARRATOR_GENDER] = gender.name
+            it[Keys.ACTIVE_VOICE_ID] = gender.id
+        }
     }
 
     suspend fun setTemperature(value: Float) {

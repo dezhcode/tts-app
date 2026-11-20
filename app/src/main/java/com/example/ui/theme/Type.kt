@@ -8,6 +8,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.R
 
+val LalezarDisplayFamily = FontFamily(
+    Font(R.font.lalezar, FontWeight.Normal),
+)
+
 val VazirmatnFontFamily = FontFamily(
     Font(R.font.vazirmatn, FontWeight.Normal),
     Font(R.font.vazirmatn, FontWeight.Medium),
@@ -22,22 +26,22 @@ val JetBrainsMonoFontFamily = FontFamily(
 
 val CillaTypography = Typography(
     displaySmall = TextStyle(
-        fontFamily = VazirmatnFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 28.sp,
-        lineHeight = 38.sp,
+        fontFamily = LalezarDisplayFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 34.sp,
+        lineHeight = 42.sp,
     ),
     headlineSmall = TextStyle(
-        fontFamily = VazirmatnFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 22.sp,
-        lineHeight = 32.sp,
+        fontFamily = LalezarDisplayFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 26.sp,
+        lineHeight = 34.sp,
     ),
     titleLarge = TextStyle(
-        fontFamily = VazirmatnFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 19.sp,
-        lineHeight = 28.sp,
+        fontFamily = LalezarDisplayFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 22.sp,
+        lineHeight = 30.sp,
     ),
     titleMedium = TextStyle(
         fontFamily = VazirmatnFontFamily,
@@ -47,15 +51,15 @@ val CillaTypography = Typography(
     ),
     titleSmall = TextStyle(
         fontFamily = VazirmatnFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 14.sp,
         lineHeight = 20.sp,
     ),
     bodyLarge = TextStyle(
         fontFamily = VazirmatnFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 28.sp,
+        fontSize = 17.sp,
+        lineHeight = 30.sp,
     ),
     bodyMedium = TextStyle(
         fontFamily = VazirmatnFontFamily,
@@ -67,7 +71,7 @@ val CillaTypography = Typography(
         fontFamily = VazirmatnFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
-        lineHeight = 19.sp,
+        lineHeight = 20.sp,
     ),
     labelLarge = TextStyle(
         fontFamily = VazirmatnFontFamily,

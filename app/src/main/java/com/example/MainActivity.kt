@@ -5,26 +5,26 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.LibraryMusic
@@ -36,15 +36,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -57,12 +52,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -74,7 +68,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.ui.MainViewModel
 import com.example.ui.ModelEngineState
-import com.example.ui.components.StatusPill
+import com.example.ui.components.DockItem
+import com.example.ui.components.FloatingStudioDock
+import com.example.ui.components.ModelStatusOrb
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.ModelSetupSheetContent
 import com.example.ui.screens.StudioScreen
@@ -85,14 +81,6 @@ const val ROUTE_STUDIO = "studio"
 const val ROUTE_VOICES = "voices"
 const val ROUTE_LIBRARY = "library"
 
-private data class NavDestination(
-    val route: String,
-    val label: String,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector,
-    val testTag: String,
-)
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -102,7 +90,7 @@ class MainActivity : ComponentActivity() {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                CillaTtsTheme(darkTheme = true) {
+                CillaTtsTheme(darkTheme = settings.darkTheme) {
                     CillaTtsApp(viewModel = viewModel)
                 }
             }
@@ -137,8 +125,8 @@ fun CillaTtsApp(viewModel: MainViewModel) {
     val micLevel by viewModel.voiceRecorder.micLevel.collectAsStateWithLifecycle()
     val recordedSeconds by viewModel.voiceRecorder.elapsedSeconds.collectAsStateWithLifecycle()
 
-    val activeVoice = remember(voices, settings.activeVoiceId) {
-        voices.firstOrNull { it.id == settings.activeVoiceId } ?: voices.firstOrNull()
+    val activeCustomVoice = remember(voices, settings.activeVoiceId) {
+        voices.firstOrNull { it.id == settings.activeVoiceId }
     }
 
     LaunchedEffect(statusBanner) {
@@ -151,16 +139,23 @@ fun CillaTtsApp(viewModel: MainViewModel) {
 
     val destinations = remember {
         listOf(
-            NavDestination(
+            DockItem(
                 route = ROUTE_STUDIO,
-                label = "گفتار",
+                label = "استودیو",
                 selectedIcon = Icons.Rounded.GraphicEq,
                 unselectedIcon = Icons.Outlined.GraphicEq,
                 testTag = "nav_studio",
             ),
-            NavDestination(
+            DockItem(
+                route = ROUTE_VOICES,
+                label = "صداها",
+                selectedIcon = Icons.Rounded.RecordVoiceOver,
+                unselectedIcon = Icons.Outlined.RecordVoiceOver,
+                testTag = "nav_voices",
+            ),
+            DockItem(
                 route = ROUTE_LIBRARY,
-                label = "بایگانی",
+                label = "آرشیو",
                 selectedIcon = Icons.Rounded.LibraryMusic,
                 unselectedIcon = Icons.Outlined.LibraryMusic,
                 testTag = "nav_library",
@@ -179,218 +174,253 @@ fun CillaTtsApp(viewModel: MainViewModel) {
         }
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val useRail = maxWidth >= 600.dp
+    val canvasBg = MaterialTheme.colorScheme.background
+    val dotGridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
 
-        Scaffold(
-            contentWindowInsets = WindowInsets.safeDrawing,
-            containerColor = MaterialTheme.colorScheme.background,
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-            topBar = {
-                Surface(
-                    color = MaterialTheme.colorScheme.background,
-                    modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 22.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column {
-                            Text(
-                                text = "آوینا ✦",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground,
-                            )
-                            Text(
-                                text = "استودیوی صدای فارسی • آفلاین",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-
-                        when (modelState) {
-                            is ModelEngineState.Ready -> StatusPill(
-                                text = "مدل آماده",
-                                dotColor = MaterialTheme.colorScheme.primary,
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .clickable { showModelSheet = true }
-                                    .testTag("nav_model"),
-                            )
-                            is ModelEngineState.Loading -> StatusPill(
-                                text = "در حال بارگذاری...",
-                                dotColor = MaterialTheme.colorScheme.secondary,
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .clickable { showModelSheet = true }
-                                    .testTag("nav_model"),
-                            )
-                            else -> StatusPill(
-                                text = "نصب مدل",
-                                dotColor = MaterialTheme.colorScheme.secondary,
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .clickable { showModelSheet = true }
-                                    .testTag("nav_model"),
-                            )
-                        }
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(canvasBg)
+            .drawBehind {
+                // Subtle architectural paper dot-grid atmosphere
+                val step = 24.dp.toPx()
+                val radius = 0.9.dp.toPx()
+                var y = step / 2f
+                while (y < size.height) {
+                    var x = step / 2f
+                    while (x < size.width) {
+                        drawCircle(
+                            color = dotGridColor,
+                            radius = radius,
+                            center = Offset(x, y),
+                        )
+                        x += step
                     }
+                    y += step
                 }
             },
-        ) { innerPadding ->
+    ) {
+        val useRail = maxWidth >= 600.dp
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+        ) {
+            // Bespoke Editorial Top Header
             Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (useRail) {
-                    NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
-                        destinations.forEach { dest ->
-                            val selected = currentRoute == dest.route
-                            NavigationRailItem(
-                                selected = selected,
-                                onClick = { navigateSingleTop(dest.route) },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                        contentDescription = dest.label,
-                                    )
-                                },
-                                label = { Text(dest.label) },
-                                modifier = Modifier.testTag(dest.testTag),
-                            )
-                        }
-                    }
-                }
-
-                NavHost(
-                    navController = navController,
-                    startDestination = ROUTE_STUDIO,
-                    modifier = Modifier.weight(1f).padding(bottom = if (useRail) 0.dp else 92.dp),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    composable(ROUTE_STUDIO) {
-                        StudioScreen(
-                            inputText = inputText,
-                            normalizedPreview = normalizedPreview,
-                            settings = settings,
-                            modelState = modelState,
-                            synthesisState = synthesisState,
-                            activeVoice = activeVoice,
-                            isPlaying = isPlaying,
-                            playingClipId = playingClipId,
-                            playProgress = playProgress,
-                            onTextChange = viewModel::updateInputText,
-                            onSynthesize = viewModel::synthesizeCurrentText,
-                            onPlayClip = viewModel::togglePlayClip,
-                            onShareClip = { clip ->
-                                viewModel.createShareIntent(clip)?.let { shareIntent ->
-                                    context.startActivity(Intent.createChooser(shareIntent, "اشتراک‌گذاری فایل صوتی"))
-                                }
-                            },
-                            onExportClip = viewModel::exportClipToUri,
-                            onUpdateTemperature = viewModel::updateTemperature,
-                            onUpdateFlowSteps = viewModel::updateFlowSteps,
-                            onUpdatePauseMs = viewModel::updateSentencePause,
-                            onUpdateTrimSilence = viewModel::updateTrimSilence,
-                            onUpdateAutoNormalize = viewModel::updateAutoNormalize,
-                            onOpenModelSetup = { showModelSheet = true },
-                            onSelectPresetVoice = viewModel::selectVoice,
-                        )
-                    }
-                    composable(ROUTE_VOICES) {
-                        VoicesScreen(
-                            voices = voices,
-                            activeVoiceId = settings.activeVoiceId,
-                            isRecording = isRecording,
-                            micLevel = micLevel,
-                            recordedSeconds = recordedSeconds,
-                            isPlaying = isPlaying,
-                            playingClipId = playingClipId,
-                            onStartRecording = viewModel::startVoiceRecording,
-                            onStopRecording = viewModel::stopVoiceRecording,
-                            onImportVoiceUri = viewModel::importVoiceFromUri,
-                            onSelectVoice = viewModel::selectVoice,
-                            onPlayVoice = viewModel::togglePlayVoice,
-                            onDeleteVoice = viewModel::deleteVoice,
-                        )
-                    }
-                    composable(ROUTE_LIBRARY) {
-                        LibraryScreen(
-                            clips = clips,
-                            isPlaying = isPlaying,
-                            playingClipId = playingClipId,
-                            playProgress = playProgress,
-                            onPlayClip = viewModel::togglePlayClip,
-                            onShareClip = { clip ->
-                                viewModel.createShareIntent(clip)?.let { shareIntent ->
-                                    context.startActivity(Intent.createChooser(shareIntent, "اشتراک‌گذاری فایل صوتی"))
-                                }
-                            },
-                            onExportClip = viewModel::exportClipToUri,
-                            onDeleteClip = viewModel::deleteClip,
-                        )
-                    }
-                }
-            }
-        }
-
-        if (!useRail) {
+                    Text(
+                        text = "سیلا",
+                        style = MaterialTheme.typography.displaySmall,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
                     Box(
-                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
-                            .windowInsetsPadding(WindowInsets.navigationBars),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(40.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 12.dp,
-                            tonalElevation = 0.dp,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                destinations.forEach { dest ->
-                                    val selected = currentRoute == dest.route
-                                    Surface(
-                                        onClick = { navigateSingleTop(dest.route) },
-                                        shape = RoundedCornerShape(32.dp),
-                                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                                        modifier = Modifier.weight(1f).testTag(dest.testTag),
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(vertical = 13.dp, horizontal = 10.dp),
-                                            horizontalArrangement = Arrangement.Center,
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            Icon(
-                                                imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                                contentDescription = dest.label,
-                                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                            if (selected) {
-                                                Spacer(Modifier.width(8.dp))
-                                                Text(dest.label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                                            }
-                                        }
-                                    }
-                                }
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                    )
+                }
+
+                ModelStatusOrb(
+                    label = when (modelState) {
+                        is ModelEngineState.Ready -> "مدل آماده"
+                        is ModelEngineState.Loading -> "بارگذاری..."
+                        else -> "نصب مدل"
+                    },
+                    isReady = modelState is ModelEngineState.Ready,
+                    isLoading = modelState is ModelEngineState.Loading,
+                    onClick = { showModelSheet = true },
+                    modifier = Modifier.testTag("nav_model"),
+                )
+            }
+
+            // Main Content + Adaptive Rail/Floating Dock
+            Box(modifier = Modifier.weight(1f)) {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    if (useRail) {
+                        NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
+                            destinations.forEach { dest ->
+                                val selected = currentRoute == dest.route
+                                NavigationRailItem(
+                                    selected = selected,
+                                    onClick = { navigateSingleTop(dest.route) },
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
+                                            contentDescription = dest.label,
+                                        )
+                                    },
+                                    label = { Text(dest.label) },
+                                    modifier = Modifier.testTag(dest.testTag),
+                                )
                             }
                         }
                     }
+
+                    val routeOrder = remember {
+                        mapOf(
+                            ROUTE_STUDIO to 0,
+                            ROUTE_VOICES to 1,
+                            ROUTE_LIBRARY to 2,
+                        )
+                    }
+
+                    NavHost(
+                        navController = navController,
+                        startDestination = ROUTE_STUDIO,
+                        modifier = Modifier.weight(1f),
+                        enterTransition = {
+                            val from = routeOrder[initialState.destination.route] ?: 0
+                            val to = routeOrder[targetState.destination.route] ?: 0
+                            // RTL spatial flow: moving forward (0 -> 1 -> 2) enters from the left (-x)
+                            val dir = if (to >= from) -1 else 1
+                            slideInHorizontally(
+                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                                initialOffsetX = { fullWidth -> (fullWidth * 0.22f).toInt() * dir },
+                            ) + fadeIn(
+                                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                            ) + scaleIn(
+                                initialScale = 0.96f,
+                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                            )
+                        },
+                        exitTransition = {
+                            val from = routeOrder[initialState.destination.route] ?: 0
+                            val to = routeOrder[targetState.destination.route] ?: 0
+                            val dir = if (to >= from) 1 else -1
+                            slideOutHorizontally(
+                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                targetOffsetX = { fullWidth -> (fullWidth * 0.14f).toInt() * dir },
+                            ) + fadeOut(
+                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                            ) + scaleOut(
+                                targetScale = 0.96f,
+                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                            )
+                        },
+                        popEnterTransition = {
+                            val from = routeOrder[initialState.destination.route] ?: 0
+                            val to = routeOrder[targetState.destination.route] ?: 0
+                            val dir = if (to >= from) -1 else 1
+                            slideInHorizontally(
+                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                                initialOffsetX = { fullWidth -> (fullWidth * 0.22f).toInt() * dir },
+                            ) + fadeIn(
+                                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                            ) + scaleIn(
+                                initialScale = 0.96f,
+                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                            )
+                        },
+                        popExitTransition = {
+                            val from = routeOrder[initialState.destination.route] ?: 0
+                            val to = routeOrder[targetState.destination.route] ?: 0
+                            val dir = if (to >= from) 1 else -1
+                            slideOutHorizontally(
+                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                targetOffsetX = { fullWidth -> (fullWidth * 0.14f).toInt() * dir },
+                            ) + fadeOut(
+                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                            ) + scaleOut(
+                                targetScale = 0.96f,
+                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                            )
+                        },
+                    ) {
+                        composable(ROUTE_STUDIO) {
+                            StudioScreen(
+                                inputText = inputText,
+                                normalizedPreview = normalizedPreview,
+                                settings = settings,
+                                modelState = modelState,
+                                synthesisState = synthesisState,
+                                activeCustomVoice = activeCustomVoice,
+                                isPlaying = isPlaying,
+                                playingClipId = playingClipId,
+                                playProgress = playProgress,
+                                onTextChange = viewModel::updateInputText,
+                                onSelectNarratorGender = viewModel::selectNarratorGender,
+                                onSynthesize = viewModel::synthesizeCurrentText,
+                                onPlayClip = viewModel::togglePlayClip,
+                                onShareClip = { clip ->
+                                    viewModel.createShareIntent(clip)?.let { shareIntent ->
+                                        context.startActivity(Intent.createChooser(shareIntent, "اشتراک‌گذاری فایل صوتی"))
+                                    }
+                                },
+                                onExportClip = viewModel::exportClipToUri,
+                                onUpdateTemperature = viewModel::updateTemperature,
+                                onUpdateFlowSteps = viewModel::updateFlowSteps,
+                                onUpdatePauseMs = viewModel::updateSentencePause,
+                                onUpdateTrimSilence = viewModel::updateTrimSilence,
+                                onUpdateAutoNormalize = viewModel::updateAutoNormalize,
+                                onOpenModelSetup = { showModelSheet = true },
+                                onNavigateToVoices = { navigateSingleTop(ROUTE_VOICES) },
+                            )
+                        }
+                        composable(ROUTE_VOICES) {
+                            VoicesScreen(
+                                voices = voices,
+                                activeVoiceId = settings.activeVoiceId,
+                                isRecording = isRecording,
+                                micLevel = micLevel,
+                                recordedSeconds = recordedSeconds,
+                                isPlaying = isPlaying,
+                                playingClipId = playingClipId,
+                                onStartRecording = viewModel::startVoiceRecording,
+                                onStopRecording = viewModel::stopVoiceRecording,
+                                onImportVoiceUri = viewModel::importVoiceFromUri,
+                                onSelectVoice = viewModel::selectVoice,
+                                onPlayVoice = viewModel::togglePlayVoice,
+                                onDeleteVoice = viewModel::deleteVoice,
+                            )
+                        }
+                        composable(ROUTE_LIBRARY) {
+                            LibraryScreen(
+                                clips = clips,
+                                isPlaying = isPlaying,
+                                playingClipId = playingClipId,
+                                playProgress = playProgress,
+                                onPlayClip = viewModel::togglePlayClip,
+                                onShareClip = { clip ->
+                                    viewModel.createShareIntent(clip)?.let { shareIntent ->
+                                        context.startActivity(Intent.createChooser(shareIntent, "اشتراک‌گذاری فایل صوتی"))
+                                    }
+                                },
+                                onExportClip = viewModel::exportClipToUri,
+                                onDeleteClip = viewModel::deleteClip,
+                            )
+                        }
+                    }
+                }
+
+                // Floating Sculpted Capsule Dock on handheld screens
+                if (!useRail) {
+                    FloatingStudioDock(
+                        items = destinations,
+                        currentRoute = currentRoute,
+                        onSelect = ::navigateSingleTop,
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
+                }
+
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = if (useRail) 16.dp else 88.dp),
+                )
+            }
         }
 
         if (showModelSheet) {
@@ -401,8 +431,14 @@ fun CillaTtsApp(viewModel: MainViewModel) {
                 containerColor = MaterialTheme.colorScheme.surface,
             ) {
                 ModelSetupSheetContent(
+                    settings = settings,
                     inventory = inventory,
                     modelState = modelState,
+                    downloadState = downloadState,
+                    onDownloadHuggingFace = viewModel::downloadModelFromHuggingFace,
+                    onImportLocalFiles = viewModel::importLocalModelFiles,
+                    onClearModels = viewModel::clearModelFiles,
+                    onToggleDarkTheme = viewModel::updateDarkTheme,
                 )
             }
         }

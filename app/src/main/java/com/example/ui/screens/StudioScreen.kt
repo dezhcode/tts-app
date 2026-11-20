@@ -2,20 +2,13 @@ package com.example.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -46,23 +39,20 @@ import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,22 +61,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.example.data.ClipRecord
+import com.example.data.NarratorGender
 import com.example.data.UserSettings
 import com.example.data.VoicePromptItem
 import com.example.ui.ModelEngineState
 import com.example.ui.SynthesisUiState
+import com.example.ui.components.AcousticRibbonVisualizer
 import com.example.ui.components.InteractiveWaveformView
+import com.example.ui.components.StudioNarratorSelector
 import java.util.Locale
 
-private val minimalPresets = listOf(
-    "خوشامد" to "سلام! با Avina می‌توانم متن‌های فارسی را کاملاً آفلاین به گفتار طبیعی تبدیل کنم.",
-    "شعر" to "الا یا ایها الساقی ادر کاسا و ناولها؛ که عشق آسان نمود اول ولی افتاد مشکل‌ها.",
-    "اعداد" to "امروز چهاردهم آبان ۱۴۰۵ است و پردازش صوتی با نرخ ۲۴ کیلوهرتز انجام می‌شود.",
+private val bespokePresets = listOf(
+    "معرفی" to "سلام! با موتور آفلاین سیلا مینی می‌توانم متن فارسی را با کیفیتی طبیعی و بدون نیاز به اینترنت بخوانم.",
+    "شعر حافظ" to "الا یا ایها الساقی ادر کاسا و ناولها؛ که عشق آسان نمود اول ولی افتاد مشکل‌ها.",
+    "خبر و عدد" to "امروز بیستم آبان ۱۴۰۵ است و پردازش صوتی با نرخ ۲۴ کیلوهرتز روی دستگاه اجرا می‌شود.",
 )
 
 @Composable
@@ -96,11 +91,12 @@ fun StudioScreen(
     settings: UserSettings,
     modelState: ModelEngineState,
     synthesisState: SynthesisUiState,
-    activeVoice: VoicePromptItem?,
+    activeCustomVoice: VoicePromptItem?,
     isPlaying: Boolean,
     playingClipId: String?,
     playProgress: Float,
     onTextChange: (String) -> Unit,
+    onSelectNarratorGender: (NarratorGender) -> Unit,
     onSynthesize: () -> Unit,
     onPlayClip: (ClipRecord) -> Unit,
     onShareClip: (ClipRecord) -> Unit,
@@ -111,9 +107,9 @@ fun StudioScreen(
     onUpdateTrimSilence: (Boolean) -> Unit,
     onUpdateAutoNormalize: (Boolean) -> Unit,
     onOpenModelSetup: () -> Unit,
-    onSelectPresetVoice: (String) -> Unit,
+    onNavigateToVoices: () -> Unit,
 ) {
-    var showOptions by remember { mutableStateOf(false) }
+    var showFineTune by remember { mutableStateOf(false) }
     var pendingExportClip by remember { mutableStateOf<ClipRecord?>(null) }
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -126,30 +122,34 @@ fun StudioScreen(
         pendingExportClip = null
     }
 
+    val isSynthesizing = synthesisState is SynthesisUiState.Synthesizing
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
     ) {
         Column(
             modifier = Modifier
-                .widthIn(max = 640.dp)
+                .widthIn(max = 620.dp)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(horizontal = 20.dp)
+                .padding(top = 6.dp, bottom = 104.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Subtle missing-model notice (only shown when model is not yet loaded)
+            // Subtle tactile setup notice when model files aren't installed yet
             if (modelState is ModelEngineState.Missing || modelState is ModelEngineState.Error) {
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                    onClick = onOpenModelSetup,
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.72f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.25f)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(onClick = onOpenModelSetup)
                         .testTag("go_to_model_setup_button"),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
@@ -157,162 +157,81 @@ fun StudioScreen(
                             text = if (modelState is ModelEngineState.Error) {
                                 modelState.message
                             } else {
-                                "فایل‌های مدل آفلاین نصب نشده‌اند"
+                                "وزن‌های آفلاین cilla-mini هنوز نصب نشده‌اند"
                             },
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
                             modifier = Modifier.weight(1f),
                         )
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(10.dp))
                         Text(
-                            text = "نصب مدل ←",
+                            text = "نصب ←",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.secondary,
+                            color = MaterialTheme.colorScheme.tertiary,
                         )
                     }
                 }
             }
 
-            // Lightweight animated neon waveform; animations run on the UI thread without network assets.
-            val infiniteTransition = rememberInfiniteTransition(label = "avina_wave")
-            val pulse by infiniteTransition.animateFloat(
-                initialValue = 0.75f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1500, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse,
-                ),
-                label = "wave_pulse",
-            )
+            // Signature Sculpted Paper Writing Sheet with Integrated Acoustic Oscilloscope
             Surface(
-                shape = RoundedCornerShape(26.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(Color(0xFF111A41), Color(0xFF2C174E), Color(0xFF101D42))
-                            )
-                        )
-                        .padding(vertical = 22.dp, horizontal = 18.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Text("✦ آوینا", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                    Text(
-                        "صدای فارسی، حتی بدون اینترنت",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.height(78.dp),
-                    ) {
-                        val heights = listOf(16, 28, 48, 70, 40, 26, 60, 74, 42, 22, 38, 58, 28, 16)
-                        heights.forEachIndexed { index, height ->
-                            Box(
-                                Modifier
-                                    .width(7.dp)
-                                    .height((height * (if (index % 2 == 0) pulse else 1.75f - pulse)).dp)
-                                    .clip(RoundedCornerShape(50))
-                                    .background(
-                                        Brush.verticalGradient(
-                                            listOf(Color(0xFF43D9FF), Color(0xFFB16BFF), Color(0xFFF16CFF))
-                                        )
-                                    )
-                            )
-                        }
-                    }
-                    Text("متن را بنویسید، گوینده را انتخاب کنید و بشنوید", style = MaterialTheme.typography.labelMedium)
-                }
-            }
-
-            Text("انتخاب گوینده", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                listOf(
-                    Triple("voice1", "صدای زن", Color(0xFFE66CFA)),
-                    Triple("voice2", "صدای مرد", Color(0xFF4BC9FF)),
-                ).forEach { (id, title, accent) ->
-                    val selected = settings.activeVoiceId == id
-                    val scale by androidx.compose.animation.core.animateFloatAsState(
-                        targetValue = if (selected) 1f else 0.97f,
-                        animationSpec = tween(250),
-                        label = "voice_card_scale",
-                    )
-                    Surface(
-                        onClick = { onSelectPresetVoice(id) },
-                        shape = RoundedCornerShape(22.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) accent else MaterialTheme.colorScheme.outlineVariant),
-                        modifier = Modifier.weight(1f).graphicsLayer { scaleX = scale; scaleY = scale }
-                            .testTag("voice_preset_$id"),
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(7.dp),
-                            modifier = Modifier.padding(12.dp),
-                        ) {
-                            AvinaVoicePortrait(isMale = id == "voice2", accent = accent, modifier = Modifier.fillMaxWidth().height(110.dp))
-                            Text(title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            Text(if (selected) "✓ انتخاب شده" else "برای انتخاب لمس کنید",
-                                color = if (selected) accent else MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-            }
-            Text(
-                "توجه: تفاوت واقعی صداها به مدل نصب‌شده بستگی دارد.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-            )
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("متن‌های نمونه", style = MaterialTheme.typography.titleMedium)
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    minimalPresets.forEach { (title, sample) ->
-                        FilterChip(
-                            selected = inputText == sample,
-                            onClick = { onTextChange(sample) },
-                            label = { Text(title) },
-                            shape = RoundedCornerShape(50),
-                        )
-                    }
-                }
-            }
-
-            // Clean Editorial Text Canvas Card
-            Surface(
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(28.dp),
                 color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shadowElevation = 2.dp,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Top Acoustic Ribbon Strip inside the Paper Sheet
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 10.dp),
+                    ) {
+                        AcousticRibbonVisualizer(
+                            isActive = isPlaying,
+                            isSynthesizing = isSynthesizing,
+                        )
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                            val narratorTag = when {
+                                activeCustomVoice != null -> "CUSTOM"
+                                settings.narratorGender == NarratorGender.FEMALE -> "FEMALE"
+                                else -> "MALE"
+                            }
+                            Text(
+                                text = when {
+                                    isSynthesizing -> {
+                                        val s = synthesisState as SynthesisUiState.Synthesizing
+                                        "SYNTH ${s.sentenceIdx}/${s.totalSentences} · F${s.frames}"
+                                    }
+                                    isPlaying -> "PLAYING · 24kHz"
+                                    else -> "CILLA-MINI · $narratorTag"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.align(Alignment.TopStart),
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
+
+                    // Editorial Text Field
                     TextField(
                         value = inputText,
                         onValueChange = onTextChange,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 4.dp)
                             .testTag("text_input_field"),
                         minLines = 5,
-                        maxLines = 10,
+                        maxLines = 9,
                         textStyle = MaterialTheme.typography.bodyLarge,
                         placeholder = {
                             Text(
-                                text = "متن فارسی خود را اینجا بنویسید...",
+                                text = "متن فارسی را اینجا بنویسید تا به صدا تبدیل شود...",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                             )
                         },
                         colors = TextFieldDefaults.colors(
@@ -324,20 +243,49 @@ fun StudioScreen(
                         ),
                     )
 
+                    // Bottom Sheet Utility Bar: Presets + Character Mono Counter + Clear + Fine-tune
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = "${inputText.length} کاراکتر",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            bespokePresets.forEach { (title, sample) ->
+                                val selected = inputText == sample
+                                Surface(
+                                    onClick = { onTextChange(sample) },
+                                    shape = RoundedCornerShape(50),
+                                    color = if (selected) {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                                    },
+                                ) {
+                                    Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = if (selected) {
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                                    )
+                                }
+                            }
+                        }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
                             if (inputText.isNotEmpty()) {
                                 IconButton(
                                     onClick = { onTextChange("") },
@@ -353,36 +301,54 @@ fun StudioScreen(
                                     )
                                 }
                             }
-                            TextButton(
-                                onClick = { showOptions = !showOptions },
-                                modifier = Modifier.testTag("toggle_tuning_button"),
+
+                            Surface(
+                                onClick = { showFineTune = !showFineTune },
+                                shape = CircleShape,
+                                color = if (showFineTune) {
+                                    MaterialTheme.colorScheme.onBackground
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("toggle_tuning_button"),
                             ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Tune,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = if (showOptions) "بستن تنظیمات" else "تنظیمات",
-                                    style = MaterialTheme.typography.labelMedium,
-                                )
+                                Box(
+                                    modifier = Modifier.size(40.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Tune,
+                                        contentDescription = "تنظیمات دقیق",
+                                        tint = if (showFineTune) {
+                                            MaterialTheme.colorScheme.surface
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        },
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // Collapsible Minimal Tuning & Normalizer Preview
-            AnimatedVisibility(visible = showOptions) {
+            // Collapsible Fine-Tune Acoustic Drawer
+            AnimatedVisibility(
+                visible = showFineTune,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(22.dp),
                     color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Row(
@@ -397,13 +363,10 @@ fun StudioScreen(
                                 Icon(
                                     imageVector = Icons.Rounded.AutoFixHigh,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = MaterialTheme.colorScheme.secondary,
                                     modifier = Modifier.size(16.dp),
                                 )
-                                Text(
-                                    text = "نرمال‌سازی خودکار اعداد و حروف",
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
+                                Text("نرمال‌ساز هوشمند فارسی", style = MaterialTheme.typography.titleSmall)
                             }
                             Switch(
                                 checked = settings.autoNormalizePersian,
@@ -414,7 +377,7 @@ fun StudioScreen(
                         if (settings.autoNormalizePersian && normalizedPreview.isNotBlank()) {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(
@@ -426,70 +389,172 @@ fun StudioScreen(
                             }
                         }
 
-                        Text(
-                            text = "تنوع لحن (Temperature): ${String.format(Locale.US, "%.2f", settings.temperature)}",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text("دمای لحن (Temperature)", style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                text = String.format(Locale.US, "%.2f", settings.temperature),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                         Slider(
                             value = settings.temperature,
                             onValueChange = onUpdateTemperature,
                             valueRange = 0.1f..1.4f,
                         )
 
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text("مکث بین جملات", style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                text = "${settings.sentencePauseMs} ms",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        Slider(
+                            value = settings.sentencePauseMs.toFloat(),
+                            onValueChange = { onUpdatePauseMs(it.toInt()) },
+                            valueRange = 0f..600f,
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("برش خودکار سکوت ابتدا و انتها", style = MaterialTheme.typography.bodySmall)
+                            Switch(
+                                checked = settings.trimSilence,
+                                onCheckedChange = onUpdateTrimSilence,
+                            )
+                        }
                     }
                 }
             }
 
-            // Primary Pill CTA
-            val isSynthesizing = synthesisState is SynthesisUiState.Synthesizing
-            val buttonGlow by infiniteTransition.animateFloat(
-                initialValue = 0.25f, targetValue = 0.85f,
-                animationSpec = infiniteRepeatable(tween(1800), RepeatMode.Reverse),
-                label = "button_glow",
+            // Direct Female / Male Narrator Switcher inside Studio
+            StudioNarratorSelector(
+                selectedGender = settings.narratorGender,
+                isCustomVoiceActive = activeCustomVoice != null,
+                customVoiceLabel = activeCustomVoice?.label,
+                onSelectGender = onSelectNarratorGender,
+                onOpenCustomVoices = onNavigateToVoices,
             )
-            Button(
-                onClick = onSynthesize,
-                enabled = !isSynthesizing,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp)
-                    .border(1.dp, Color(0xFF58DFFF).copy(alpha = buttonGlow), RoundedCornerShape(50))
-                    .testTag("synthesize_button"),
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
+
+            // Asymmetric One-Thumb Hardware Action Bar (Primary Vermilion Pill + Custom Voice Cloning Capsule)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.GraphicEq,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = if (isSynthesizing) {
-                        val s = synthesisState as SynthesisUiState.Synthesizing
-                        "در حال تولید (${s.sentenceIdx}/${s.totalSentences})..."
-                    } else {
-                        "تبدیل به گفتار"
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                Button(
+                    onClick = onSynthesize,
+                    enabled = !isSynthesizing,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(58.dp)
+                        .testTag("synthesize_button"),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 3.dp,
+                        pressedElevation = 0.dp,
+                    ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.GraphicEq,
+                        contentDescription = null,
+                        modifier = Modifier.size(21.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (isSynthesizing) "در حال ساخت صدا..." else "تبدیل به گفتار",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+
+                // Tactile Custom Voice Profile Capsule
+                Surface(
+                    onClick = onNavigateToVoices,
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(
+                        width = if (activeCustomVoice != null) 1.5.dp else 1.dp,
+                        color = if (activeCustomVoice != null) {
+                            MaterialTheme.colorScheme.tertiary
+                        } else {
+                            MaterialTheme.colorScheme.outlineVariant
+                        },
+                    ),
+                    modifier = Modifier
+                        .height(58.dp)
+                        .testTag("active_voice_selector"),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (activeCustomVoice != null) {
+                                        MaterialTheme.colorScheme.tertiaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.RecordVoiceOver,
+                                contentDescription = "صدای سفارشی",
+                                tint = if (activeCustomVoice != null) {
+                                    MaterialTheme.colorScheme.tertiary
+                                } else {
+                                    MaterialTheme.colorScheme.secondary
+                                },
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                        Text(
+                            text = activeCustomVoice?.label ?: "صدای سفارشی",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 96.dp),
+                        )
+                    }
+                }
             }
 
             if (isSynthesizing) {
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp)),
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(50)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
             }
 
             if (synthesisState is SynthesisUiState.Error) {
                 Surface(
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.errorContainer,
                 ) {
                     Text(
@@ -501,136 +566,108 @@ fun StudioScreen(
                 }
             }
 
-            // Minimal Result Audio Player Card
+            // Bespoke Analog Tape Deck Audio Player Card
             if (synthesisState is SynthesisUiState.Success) {
                 val clip = synthesisState.clip
                 val thisPlaying = isPlaying && playingClipId == clip.id
+
                 Surface(
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
                     color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    shadowElevation = 2.dp,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        FilledIconButton(
-                            onClick = { onPlayClip(clip) },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .testTag("play_audio_button"),
-                            shape = CircleShape,
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                            ),
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(
-                                imageVector = if (thisPlaying) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
-                                contentDescription = if (thisPlaying) "توقف" else "پخش",
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.secondary),
+                                )
+                                Text(
+                                    text = clip.voiceLabel.ifBlank { "نوار خروجی آماده" },
+                                    style = MaterialTheme.typography.labelLarge,
+                                )
+                            }
+                            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                                Text(
+                                    text = String.format(
+                                        Locale.US,
+                                        "%.1fs · RTF %.2f",
+                                        clip.durationSec,
+                                        clip.rtf,
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
 
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
+                            com.example.ui.components.AnimatedPlaybackButton(
+                                isPlaying = thisPlaying,
+                                onClick = { onPlayClip(clip) },
+                                buttonSize = 50.dp,
+                                iconSize = 22.dp,
+                                modifier = Modifier.testTag("play_audio_button"),
+                            )
+
                             InteractiveWaveformView(
                                 peaks = clip.waveformPeaks,
                                 progress = if (thisPlaying) playProgress else 0f,
                                 isPlaying = thisPlaying,
+                                modifier = Modifier.weight(1f),
                             )
-                            Text(
-                                text = String.format(Locale.US, "%.1f ثانیه • ۲۴ kHz", clip.durationSec),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
 
-                        IconButton(
-                            onClick = {
-                                pendingExportClip = clip
-                                exportLauncher.launch(clip.fileName)
-                            },
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .testTag("export_wav_button"),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Download,
-                                contentDescription = "ذخیره فایل WAV",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                            IconButton(
+                                onClick = {
+                                    pendingExportClip = clip
+                                    exportLauncher.launch(clip.fileName)
+                                },
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("export_wav_button"),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Download,
+                                    contentDescription = "ذخیره فایل WAV",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
 
-                        IconButton(
-                            onClick = { onShareClip(clip) },
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .testTag("share_wav_button"),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Share,
-                                contentDescription = "اشتراک‌گذاری",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            IconButton(
+                                onClick = { onShareClip(clip) },
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("share_wav_button"),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Share,
+                                    contentDescription = "اشتراک‌گذاری",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
             }
-
-            Spacer(Modifier.height(12.dp))
         }
-    }
-}
-
-/** Portraits are drawn locally as vector shapes; no remote assets or network access. */
-@Composable
-private fun AvinaVoicePortrait(isMale: Boolean, accent: Color, modifier: Modifier = Modifier) {
-    val floatAnim = rememberInfiniteTransition(label = "avatar_glow")
-    val glow by floatAnim.animateFloat(
-        initialValue = 0.18f, targetValue = 0.45f,
-        animationSpec = infiniteRepeatable(tween(1900), RepeatMode.Reverse),
-        label = "avatar_pulse",
-    )
-    Canvas(modifier = modifier.clip(RoundedCornerShape(18.dp))
-        .background(Brush.verticalGradient(listOf(Color(0xFF1B234F), Color(0xFF29173E))))) {
-        val w = size.width
-        val h = size.height
-        val center = Offset(w / 2, h * 0.47f)
-        drawCircle(accent.copy(alpha = glow), radius = w * 0.44f, center = center)
-        // shoulders and jacket
-        drawOval(Color(0xFF11182F), topLeft = Offset(w * 0.15f, h * 0.76f),
-            size = androidx.compose.ui.geometry.Size(w * 0.70f, h * 0.43f))
-        if (!isMale) {
-            drawOval(Color(0xFF1C1432), topLeft = Offset(w * 0.27f, h * 0.15f),
-                size = androidx.compose.ui.geometry.Size(w * 0.46f, h * 0.73f))
-        }
-        drawOval(Color(0xFFE4AC92), topLeft = Offset(w * 0.35f, h * 0.26f),
-            size = androidx.compose.ui.geometry.Size(w * 0.30f, h * 0.48f))
-        // hair silhouette
-        drawArc(Color(0xFF151325), 180f, 180f, useCenter = true,
-            topLeft = Offset(w * 0.32f, h * 0.16f),
-            size = androidx.compose.ui.geometry.Size(w * 0.36f, h * 0.32f))
-        if (isMale) {
-            drawArc(Color(0xFF312124), 0f, 180f, useCenter = true,
-                topLeft = Offset(w * 0.38f, h * 0.53f),
-                size = androidx.compose.ui.geometry.Size(w * 0.24f, h * 0.19f))
-        }
-        // headphones
-        drawArc(accent, 190f, 160f, useCenter = false,
-            topLeft = Offset(w * 0.28f, h * 0.19f),
-            size = androidx.compose.ui.geometry.Size(w * 0.44f, h * 0.52f),
-            style = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round))
-        drawRoundRect(accent, topLeft = Offset(w * 0.27f, h * 0.43f),
-            size = androidx.compose.ui.geometry.Size(w * 0.075f, h * 0.19f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx()))
-        drawRoundRect(accent, topLeft = Offset(w * 0.65f, h * 0.43f),
-            size = androidx.compose.ui.geometry.Size(w * 0.075f, h * 0.19f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx()))
-        drawCircle(Color(0xFF10152F), radius = w * 0.012f, center = Offset(w * 0.44f, h * 0.48f))
-        drawCircle(Color(0xFF10152F), radius = w * 0.012f, center = Offset(w * 0.56f, h * 0.48f))
     }
 }
